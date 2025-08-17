@@ -36,6 +36,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { translateSignLanguage, recognizeSignLanguage } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   signLanguageText: z
@@ -66,6 +68,64 @@ export default function Home() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
+  const [isRealtime, setIsRealtime] = React.useState(false);
+  const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      signLanguageText: "",
+      contextualInformation: "",
+    },
+  });
+
+  const handleRecognizeSign = React.useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || !hasCameraPermission || isRecognizing) {
+      return;
+    }
+
+    setIsRecognizing(true);
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+
+    if (context) {
+      // Flip the image horizontally
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageDataUri = canvas.toDataURL("image/jpeg");
+
+      try {
+        const result = await recognizeSignLanguage({ imageDataUri });
+        if (result.success && result.data) {
+          form.setValue("signLanguageText", result.data.text);
+          if (!isRealtime) {
+            toast({
+              title: "Sign Recognized",
+              description: "The initial translation has been populated.",
+            });
+          }
+        } else {
+           if (!isRealtime) {
+            throw new Error(result.error || "An unknown error occurred.");
+           }
+        }
+      } catch (error: any) {
+         if (!isRealtime) {
+          toast({
+            variant: "destructive",
+            title: "Recognition Failed",
+            description: error.message || "Could not recognize the sign. Please try again.",
+          });
+         }
+      }
+    }
+    setIsRecognizing(false);
+  }, [hasCameraPermission, form, toast, isRealtime, isRecognizing]);
+
 
   React.useEffect(() => {
     const getCameraPermission = async () => {
@@ -101,14 +161,22 @@ export default function Home() {
     getCameraPermission();
   }, [toast]);
 
+  React.useEffect(() => {
+    if (isRealtime && hasCameraPermission) {
+      recognitionIntervalRef.current = setInterval(handleRecognizeSign, 2000); // every 2 seconds
+    } else {
+      if (recognitionIntervalRef.current) {
+        clearInterval(recognitionIntervalRef.current);
+      }
+    }
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      signLanguageText: "",
-      contextualInformation: "",
-    },
-  });
+    return () => {
+      if (recognitionIntervalRef.current) {
+        clearInterval(recognitionIntervalRef.current);
+      }
+    };
+  }, [isRealtime, hasCameraPermission, handleRecognizeSign]);
+
 
   async function onSubmit(values: FormValues) {
     setIsTranslating(true);
@@ -135,53 +203,6 @@ export default function Home() {
       setIsTranslating(false);
     }
   }
-
-  const handleRecognizeSign = async () => {
-    if (!videoRef.current || !canvasRef.current || !hasCameraPermission) {
-      toast({
-        variant: "destructive",
-        title: "Camera not ready",
-        description: "Please ensure camera permissions are enabled and the feed is active.",
-      });
-      return;
-    }
-
-    setIsRecognizing(true);
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext("2d");
-
-    if (context) {
-      // Flip the image horizontally
-      context.translate(canvas.width, 0);
-      context.scale(-1, 1);
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageDataUri = canvas.toDataURL("image/jpeg");
-
-      try {
-        const result = await recognizeSignLanguage({ imageDataUri });
-        if (result.success && result.data) {
-          form.setValue("signLanguageText", result.data.text);
-          toast({
-            title: "Sign Recognized",
-            description: "The initial translation has been populated.",
-          });
-        } else {
-          throw new Error(result.error || "An unknown error occurred.");
-        }
-      } catch (error: any) {
-        toast({
-          variant: "destructive",
-          title: "Recognition Failed",
-          description: error.message || "Could not recognize the sign. Please try again.",
-        });
-      }
-    }
-    setIsRecognizing(false);
-  };
-
 
   const speak = (text: string, lang: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
@@ -216,12 +237,18 @@ export default function Home() {
           <div className="space-y-8">
             <Card className="overflow-hidden shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Camera className="text-primary" />
-                  Live Camera Feed
+                <CardTitle className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                    <Camera className="text-primary" />
+                    Live Camera Feed
+                   </div>
+                   <div className="flex items-center space-x-2">
+                      <Switch id="realtime-mode" checked={isRealtime} onCheckedChange={setIsRealtime} disabled={!hasCameraPermission} />
+                      <Label htmlFor="realtime-mode">Real-time Translation</Label>
+                    </div>
                 </CardTitle>
                 <CardDescription>
-                  Real-time gesture and expression capture.
+                  Real-time gesture and expression capture. Toggle the switch for continuous translation.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -239,7 +266,7 @@ export default function Home() {
                   )}
               </CardContent>
               <CardFooter>
-                 <Button onClick={handleRecognizeSign} className="w-full" disabled={isRecognizing || !hasCameraPermission}>
+                 <Button onClick={handleRecognizeSign} className="w-full" disabled={isRecognizing || !hasCameraPermission || isRealtime}>
                       {isRecognizing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -248,7 +275,7 @@ export default function Home() {
                       ) : (
                         <>
                            <Scan className="mr-2 h-4 w-4" />
-                           Recognize Sign
+                           Recognize Sign (Once)
                         </>
                       )}
                     </Button>
@@ -276,7 +303,7 @@ export default function Home() {
                           <FormLabel>Initial Translation</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Click 'Recognize Sign' or enter text manually..."
+                              placeholder="Enable real-time or click 'Recognize Sign'..."
                               className="resize-none"
                               rows={4}
                               {...field}
