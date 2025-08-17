@@ -34,7 +34,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { translateSignLanguage, recognizeSignLanguage } from "./actions";
+import {
+  translateSignLanguage,
+  recognizeSignLanguage,
+  generateSpeech,
+} from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -70,7 +74,8 @@ export default function Home() {
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
   const [isRealtime, setIsRealtime] = React.useState(false);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isSpeaking, setIsSpeaking] = React.useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -135,7 +140,7 @@ export default function Home() {
           const newWord = result.data.text;
           const currentText = form.getValues("signLanguageText");
           const newSignLanguageText = currentText ? `${currentText} ${newWord}` : newWord;
-          form.setValue("signLanguageText", newSignLanguageText);
+          form.setValue("signLanguageText", newSignLanguageText, { shouldValidate: true });
           
           if (isRealtime) {
             const currentValues = form.getValues();
@@ -167,8 +172,9 @@ export default function Home() {
   const clearAll = () => {
     form.reset();
     setTranslationResult(null);
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
     }
     toast({
       title: 'Cleared',
@@ -229,34 +235,36 @@ export default function Home() {
     };
   }, [isRealtime, hasCameraPermission, handleRecognizeSign]);
 
-  const speak = (text: string, lang: string) => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = languageMap[lang] || "en-US";
-      utterance.rate = 0.9;
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => {
-        setIsSpeaking(false);
-        toast({
-          variant: "destructive",
-          title: "Audio Playback Error",
-          description: "Could not play the audio.",
-        });
-      };
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    } else {
+  const speak = async (text: string, lang: string) => {
+    if (!text || !lang || isGeneratingAudio) return;
+
+    setIsGeneratingAudio(true);
+    try {
+      const languageCode = languageMap[lang] || "en-US";
+      const result = await generateSpeech(text, languageCode);
+
+      if (result.success && result.data) {
+        if (audioRef.current) {
+          audioRef.current.src = result.data.audioDataUri;
+          audioRef.current.play();
+        }
+      } else {
+        throw new Error(result.error || "Failed to generate audio.");
+      }
+    } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Audio Not Supported",
-        description: "Your browser does not support speech synthesis.",
+        title: "Audio Playback Error",
+        description: error.message || "Could not play the audio.",
       });
+    } finally {
+      setIsGeneratingAudio(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">
+       <audio ref={audioRef} className="hidden" />
       <main className="container mx-auto p-4 py-8 md:p-8">
         <header className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
@@ -313,24 +321,24 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleTranslation)}>
-                  <CardContent className="space-y-6">
+                <form onSubmit={form.handleSubmit(handleTranslation)} className="h-full flex flex-col">
+                  <CardContent className="space-y-6 flex-grow">
                     <FormField
                       control={form.control}
                       name="signLanguageText"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Initial Translation</FormLabel>
+                          <FormLabel>Accumulated Signs</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Recognized words will appear here..."
+                              placeholder="Recognized words will appear here one by one..."
                               className="resize-none"
                               rows={4}
                               {...field}
                             />
                           </FormControl>
                           <FormDescription>
-                            This text is generated by the AI from your signs.
+                            This text is generated by the AI from your signs. You can edit it before translating.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -392,7 +400,7 @@ export default function Home() {
                         Clear
                       </Button>
                     <Button type="submit" className="w-full" disabled={isTranslating || isRealtime}>
-                      {isTranslating ? (
+                      {isTranslating && !isRealtime ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Translating...
@@ -455,12 +463,12 @@ export default function Home() {
                     onClick={() =>
                       speak(translationResult, form.getValues("targetLanguage"))
                     }
-                    disabled={isSpeaking}
+                    disabled={isGeneratingAudio}
                   >
-                    {isSpeaking ? (
+                    {isGeneratingAudio ? (
                        <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Speaking...
+                        Generating Audio...
                        </>
                     ) : (
                        <>

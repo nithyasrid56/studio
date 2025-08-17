@@ -8,7 +8,7 @@ import {
   recognizeSign,
   type RecognizeSignInput,
 } from "@/ai/flows/recognize-sign";
-
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 
 export async function translateSignLanguage(
   data: ImproveTranslationUnderstandingInput
@@ -18,8 +18,6 @@ export async function translateSignLanguage(
     return { success: true, data: result };
   } catch (error) {
     console.error("Error in translateSignLanguage action:", error);
-    // It's better to return a generic error message to the client
-    // to avoid leaking implementation details.
     return {
       success: false,
       error: "An unexpected error occurred while translating. Please try again later.",
@@ -36,6 +34,19 @@ export async function recognizeSignLanguage(data: RecognizeSignInput) {
     return {
       success: false,
       error: "An unexpected error occurred during recognition. Please try again.",
+    };
+  }
+}
+
+export async function generateSpeech(text: string, language: string) {
+  try {
+    const result = await textToSpeech({ text, language });
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error in generateSpeech action:", error);
+    return {
+      success: false,
+      error: "An unexpected error occurred while generating speech. Please try again.",
     };
   }
 }
