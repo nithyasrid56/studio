@@ -130,12 +130,11 @@ export default function Home() {
         const result = await recognizeSignLanguage({ imageDataUri });
         if (result.success && result.data?.text) {
           const newWord = result.data.text;
-          // Accumulate words to form a sentence
-          setAccumulatedSigns(prev => prev ? `${prev} ${newWord}` : newWord);
+          const newSignLanguageText = accumulatedSigns ? `${accumulatedSigns} ${newWord}` : newWord;
+          setAccumulatedSigns(newSignLanguageText);
           
           if (isRealtime) {
             const currentValues = form.getValues();
-            const newSignLanguageText = accumulatedSigns ? `${accumulatedSigns} ${newWord}` : newWord;
             if(currentValues.targetLanguage && newSignLanguageText){
                handleTranslation(newSignLanguageText, currentValues.targetLanguage);
             }
@@ -158,10 +157,6 @@ export default function Home() {
     setIsRecognizing(false);
   }, [hasCameraPermission, form, toast, isRealtime, isRecognizing, handleTranslation, accumulatedSigns]);
   
-  const manualTranslate = (values: FormValues) => {
-    handleTranslation(accumulatedSigns, values.targetLanguage)
-  }
-
   const clearAll = () => {
     form.reset();
     setTranslationResult(null);
@@ -313,7 +308,7 @@ export default function Home() {
                 </CardTitle>
               </CardHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(manualTranslate)} className="h-full flex flex-col">
+                <form className="h-full flex flex-col">
                   <CardContent className="space-y-6 flex-grow">
                     <FormField
                       control={form.control}
@@ -342,26 +337,11 @@ export default function Home() {
                         </FormItem>
                       )}
                     />
-                  </CardContent>
-                  <CardFooter className="gap-2">
-                     <Button type="button" variant="outline" className="w-full" onClick={clearAll}>
+                      <Button type="button" variant="outline" className="w-full" onClick={clearAll}>
                         <XCircle className="mr-2 h-4 w-4" />
-                        Clear
+                        Clear Conversation
                       </Button>
-                    <Button type="submit" className="w-full" disabled={isTranslating || isRealtime || !accumulatedSigns}>
-                      {isTranslating && !isRealtime ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Translating...
-                        </>
-                      ) : (
-                        <>
-                           <Bot className="mr-2 h-4 w-4" />
-                           Translate with AI
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
+                  </CardContent>
                 </form>
               </Form>
             </Card>
