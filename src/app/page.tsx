@@ -61,7 +61,6 @@ export default function Home() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
-  const [isRealtime, setIsRealtime] = React.useState(false);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
@@ -86,12 +85,6 @@ export default function Home() {
       });
       if (result.success && result.data) {
         setTranslationResult(result.data.improvedTranslation);
-        if (!isRealtime) {
-          toast({
-            title: "Translation Successful",
-            description: "Your text has been translated.",
-          });
-        }
       } else {
         throw new Error(result.error || "An unknown error occurred.");
       }
@@ -105,7 +98,7 @@ export default function Home() {
     } finally {
       setIsTranslating(false);
     }
-  }, [isTranslating, toast, isRealtime, contextualInfo]);
+  }, [isTranslating, toast, contextualInfo]);
 
 
   const handleRecognizeSign = React.useCallback(async () => {
@@ -133,29 +126,19 @@ export default function Home() {
           const newSignLanguageText = accumulatedSigns ? `${accumulatedSigns} ${newWord}` : newWord;
           setAccumulatedSigns(newSignLanguageText);
           
-          if (isRealtime) {
-            const currentValues = form.getValues();
-            if(currentValues.targetLanguage && newSignLanguageText){
-               handleTranslation(newSignLanguageText, currentValues.targetLanguage);
-            }
+          const currentValues = form.getValues();
+          if(currentValues.targetLanguage && newSignLanguageText){
+              handleTranslation(newSignLanguageText, currentValues.targetLanguage);
           }
         } else {
-           if (!isRealtime) {
-            throw new Error(result.error || "An unknown error occurred.");
-           }
+           // Don't show toast for failed recognition in real-time
         }
       } catch (error: any) {
-         if (!isRealtime) {
-          toast({
-            variant: "destructive",
-            title: "Recognition Failed",
-            description: error.message || "Could not recognize the sign. Please try again.",
-          });
-         }
+         // Don't show toast for failed recognition in real-time
       }
     }
     setIsRecognizing(false);
-  }, [hasCameraPermission, form, toast, isRealtime, isRecognizing, handleTranslation, accumulatedSigns]);
+  }, [hasCameraPermission, form, isRecognizing, handleTranslation, accumulatedSigns]);
   
   const clearAll = () => {
     form.reset();
@@ -207,7 +190,7 @@ export default function Home() {
   }, [toast]);
 
   React.useEffect(() => {
-    if (isRealtime && hasCameraPermission) {
+    if (hasCameraPermission) {
       if (recognitionIntervalRef.current) {
         clearInterval(recognitionIntervalRef.current);
       }
@@ -223,7 +206,7 @@ export default function Home() {
         clearInterval(recognitionIntervalRef.current);
       }
     };
-  }, [isRealtime, hasCameraPermission, handleRecognizeSign]);
+  }, [hasCameraPermission, handleRecognizeSign]);
 
   const speak = async (text: string, lang: string) => {
     if (!text || !lang || isGeneratingAudio) return;
@@ -275,13 +258,9 @@ export default function Home() {
                     <Camera className="text-primary" />
                     Live Camera Feed
                    </div>
-                   <div className="flex items-center space-x-2">
-                      <Switch id="realtime-mode" checked={isRealtime} onCheckedChange={setIsRealtime} disabled={!hasCameraPermission} />
-                      <Label htmlFor="realtime-mode">Real-time Translation</Label>
-                    </div>
                 </CardTitle>
                 <CardDescription>
-                  Your gestures are captured here. Enable real-time for continuous translation.
+                  Your gestures are captured and translated in real-time.
                 </CardDescription>
               </CardHeader>
               <CardContent>
