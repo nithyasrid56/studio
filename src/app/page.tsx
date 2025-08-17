@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -36,6 +35,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { translateSignLanguage } from "./actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   signLanguageText: z
@@ -62,6 +62,43 @@ export default function Home() {
   const [translationResult, setTranslationResult] = React.useState<string | null>(null);
   const [isTranslating, setIsTranslating] = React.useState(false);
   const { toast } = useToast();
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    const getCameraPermission = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error("Camera API not supported in this browser.");
+        setHasCameraPermission(false);
+        toast({
+          variant: "destructive",
+          title: "Camera Not Supported",
+          description: "Your browser does not support the camera API.",
+        });
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error("Error accessing camera:", error);
+        setHasCameraPermission(false);
+        toast({
+          variant: "destructive",
+          title: "Camera Access Denied",
+          description: "Please enable camera permissions in your browser settings to use this feature.",
+        });
+      }
+    };
+
+    getCameraPermission();
+  }, [toast]);
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -140,16 +177,16 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden border">
-                  <Image
-                    src="https://placehold.co/800x600.png"
-                    width={800}
-                    height={600}
-                    alt="Live camera feed placeholder"
-                    className="object-cover w-full h-full"
-                    data-ai-hint="sign language person"
-                    priority
-                  />
+                   <video ref={videoRef} className="w-full aspect-video rounded-md" autoPlay muted playsInline />
                 </div>
+                {hasCameraPermission === false && (
+                    <Alert variant="destructive" className="mt-4">
+                      <AlertTitle>Camera Access Required</AlertTitle>
+                      <AlertDescription>
+                        Please allow camera access in your browser settings to use this feature.
+                      </AlertDescription>
+                    </Alert>
+                  )}
               </CardContent>
             </Card>
 
