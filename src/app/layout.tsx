@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Bhasha Setu',
-  description: 'Real-time sign language translation to bridge communication gaps.',
+  title: 'HelloHand',
+  description: 'greeting through sign',
 };
 
 export default function RootLayout({
