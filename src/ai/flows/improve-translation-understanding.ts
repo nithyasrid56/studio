@@ -14,7 +14,7 @@ import {z} from 'genkit';
 const ImproveTranslationUnderstandingInputSchema = z.object({
   signLanguageText: z
     .string()
-    .describe('The initial text translated from sign language.'),
+    .describe('The sequence of words translated from Indian Sign Language gestures.'),
   contextualInformation: z
     .string()
     .describe(
@@ -22,7 +22,7 @@ const ImproveTranslationUnderstandingInputSchema = z.object({
     ),
   targetLanguage: z
     .string()
-    .describe('The target language for the translation.'),
+    .describe('The target regional Indian language for the translation.'),
 });
 export type ImproveTranslationUnderstandingInput = z.infer<
   typeof ImproveTranslationUnderstandingInputSchema
@@ -31,7 +31,7 @@ export type ImproveTranslationUnderstandingInput = z.infer<
 const ImproveTranslationUnderstandingOutputSchema = z.object({
   improvedTranslation: z
     .string()
-    .describe('The improved and contextually accurate translation.'),
+    .describe('The improved and grammatically correct translation in the target language.'),
 });
 export type ImproveTranslationUnderstandingOutput = z.infer<
   typeof ImproveTranslationUnderstandingOutputSchema
@@ -51,14 +51,14 @@ const prompt = ai.definePrompt({
   output: {
     schema: ImproveTranslationUnderstandingOutputSchema,
   },
-  prompt: `You are an expert in sign language translation and regional Indian languages.
-Given the initial translation and contextual information, improve the translation to be more accurate and understandable in the target language.
+  prompt: `You are an expert in linguistics, specializing in Indian Sign Language (ISL) and regional Indian languages.
+Your task is to convert a sequence of ISL words into a grammatically correct and natural-sounding sentence in the specified target language. ISL grammar is different from spoken languages, so you will need to reorder words and add appropriate grammar.
 
-Initial Translation: {{{signLanguageText}}}
+Sequence of ISL words: {{{signLanguageText}}}
 Contextual Information: {{{contextualInformation}}}
 Target Language: {{{targetLanguage}}}
 
-Improved Translation:`, // The LLM should respond with an improved translation
+Convert the word sequence into a single, fluid sentence in {{{targetLanguage}}}.`,
 });
 
 const improveTranslationUnderstandingFlow = ai.defineFlow(

@@ -21,7 +21,7 @@ const RecognizeSignInputSchema = z.object({
 export type RecognizeSignInput = z.infer<typeof RecognizeSignInputSchema>;
 
 const RecognizeSignOutputSchema = z.object({
-  text: z.string().describe('The recognized text from the sign language gesture.'),
+  text: z.string().describe('The recognized word or short phrase from the sign language gesture.'),
 });
 export type RecognizeSignOutput = z.infer<typeof RecognizeSignOutputSchema>;
 
@@ -35,8 +35,9 @@ const prompt = ai.definePrompt({
   name: 'recognizeSignPrompt',
   input: {schema: RecognizeSignInputSchema},
   output: {schema: RecognizeSignOutputSchema},
-  prompt: `You are an expert in sign language. Analyze the provided image and describe the sign being made.
-  Focus on the hand shapes, movements, and facial expressions to provide an accurate interpretation of the sign.
+  prompt: `You are an expert in Indian Sign Language (ISL). Analyze the provided image of a sign language gesture.
+Interpret the hand shape, movement, location, and facial expression to determine the single word or short phrase being signed.
+Provide only the most likely interpretation. Your output should be concise.
 
 Image: {{media url=imageDataUri}}`,
 });
