@@ -18,13 +18,11 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
   translateSignLanguage,
@@ -44,11 +41,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
-  signLanguageText: z
-    .string()
-    .min(1, "Please enter some text to translate.")
-    .max(500),
-  contextualInformation: z.string().max(500).optional(),
   targetLanguage: z.string({
     required_error: "Please select a language.",
   }),
@@ -76,22 +68,25 @@ export default function Home() {
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [accumulatedSigns, setAccumulatedSigns] = React.useState("");
+  const [contextualInfo, setContextualInfo] = React.useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      signLanguageText: "",
-      contextualInformation: "",
-    },
+    defaultValues: {},
   });
 
-  const handleTranslation = React.useCallback(async (values: FormValues) => {
-    if (isTranslating) return;
+  const handleTranslation = React.useCallback(async (signLanguageText: string, targetLanguage: string) => {
+    if (isTranslating || !signLanguageText || !targetLanguage) return;
     
     setIsTranslating(true);
     setTranslationResult(null);
     try {
-      const result = await translateSignLanguage(values);
+      const result = await translateSignLanguage({
+        signLanguageText,
+        targetLanguage,
+        contextualInformation: contextualInfo,
+      });
       if (result.success && result.data) {
         setTranslationResult(result.data.improvedTranslation);
         if (!isRealtime) {
@@ -113,7 +108,7 @@ export default function Home() {
     } finally {
       setIsTranslating(false);
     }
-  }, [isTranslating, toast, isRealtime]);
+  }, [isTranslating, toast, isRealtime, contextualInfo]);
 
 
   const handleRecognizeSign = React.useCallback(async () => {
@@ -138,17 +133,14 @@ export default function Home() {
         const result = await recognizeSignLanguage({ imageDataUri });
         if (result.success && result.data?.text) {
           const newWord = result.data.text;
-          const currentText = form.getValues("signLanguageText");
-          const newSignLanguageText = currentText ? `${currentText} ${newWord}` : newWord;
-          form.setValue("signLanguageText", newSignLanguageText, { shouldValidate: true });
+          // Accumulate words to form a sentence
+          setAccumulatedSigns(prev => prev ? `${prev} ${newWord}` : newWord);
           
           if (isRealtime) {
             const currentValues = form.getValues();
+            const newSignLanguageText = accumulatedSigns ? `${accumulatedSigns} ${newWord}` : newWord;
             if(currentValues.targetLanguage && newSignLanguageText){
-               handleTranslation({
-                ...currentValues,
-                signLanguageText: newSignLanguageText,
-              });
+               handleTranslation(newSignLanguageText, currentValues.targetLanguage);
             }
           }
         } else {
@@ -167,11 +159,17 @@ export default function Home() {
       }
     }
     setIsRecognizing(false);
-  }, [hasCameraPermission, form, toast, isRealtime, isRecognizing, handleTranslation]);
+  }, [hasCameraPermission, form, toast, isRealtime, isRecognizing, handleTranslation, accumulatedSigns]);
+  
+  const manualTranslate = (values: FormValues) => {
+    handleTranslation(accumulatedSigns, values.targetLanguage)
+  }
 
   const clearAll = () => {
     form.reset();
     setTranslationResult(null);
+    setAccumulatedSigns("");
+    setContextualInfo("");
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = "";
@@ -221,7 +219,7 @@ export default function Home() {
       if (recognitionIntervalRef.current) {
         clearInterval(recognitionIntervalRef.current);
       }
-      recognitionIntervalRef.current = setInterval(handleRecognizeSign, 5000); // every 5 seconds
+      recognitionIntervalRef.current = setInterval(handleRecognizeSign, 3000); // every 3 seconds
     } else {
       if (recognitionIntervalRef.current) {
         clearInterval(recognitionIntervalRef.current);
@@ -268,10 +266,10 @@ export default function Home() {
       <main className="container mx-auto p-4 py-8 md:p-8">
         <header className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
-            Speaksign
+            Bhasha Setu
           </h1>
           <p className="text-lg text-muted-foreground mt-2">
-            Real-time sign language interpretation.
+            Your friendly sign language interpreter.
           </p>
         </header>
 
@@ -291,7 +289,7 @@ export default function Home() {
                     </div>
                 </CardTitle>
                 <CardDescription>
-                  Real-time gesture and expression capture. Toggle the switch for continuous translation.
+                  Your gestures are captured here. Enable real-time for continuous translation.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -311,47 +309,15 @@ export default function Home() {
             </Card>
 
             <Card className="shadow-lg">
-              <CardHeader>
+               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                    <Languages className="text-primary" />
-                   Translation Input
+                   Translation Settings
                 </CardTitle>
               </CardHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleTranslation)} className="h-full flex flex-col">
+                <form onSubmit={form.handleSubmit(manualTranslate)} className="h-full flex flex-col">
                   <CardContent className="space-y-6 flex-grow">
-                    <FormField
-                      control={form.control}
-                      name="signLanguageText"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Recognized words will appear here..."
-                              className="resize-none"
-                              rows={4}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="contextualInformation"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <Input
-                              placeholder="Add context (e.g., 'At a clinic')"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <FormField
                       control={form.control}
                       name="targetLanguage"
@@ -375,9 +341,6 @@ export default function Home() {
                               ))}
                             </SelectContent>
                           </Select>
-                          <FormDescription>
-                            The language to translate the text into.
-                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -388,7 +351,7 @@ export default function Home() {
                         <XCircle className="mr-2 h-4 w-4" />
                         Clear
                       </Button>
-                    <Button type="submit" className="w-full" disabled={isTranslating || isRealtime}>
+                    <Button type="submit" className="w-full" disabled={isTranslating || isRealtime || !accumulatedSigns}>
                       {isTranslating && !isRealtime ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -413,34 +376,43 @@ export default function Home() {
               <CardHeader>
                 <CardTitle>Translation Output</CardTitle>
                 <CardDescription>
-                  The translated text will appear here.
+                  The translated text from recognized signs will appear here.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-center items-center text-center">
-                {(isRecognizing && isRealtime) && (
+                
+                {isRecognizing && !translationResult && (
                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="font-semibold">Listening for signs...</p>
                   </div>
                 )}
-                {(isTranslating && !isRealtime) && (
+
+                {isTranslating && (
                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="font-semibold">Translating your message...</p>
                     <p className="text-sm">AI is working its magic.</p>
                   </div>
                 )}
+                
                 {!isTranslating && translationResult && (
                   <div className="w-full">
                     <p className="text-2xl md:text-3xl font-semibold text-accent-foreground bg-accent p-6 rounded-lg shadow-inner">
                       {translationResult}
                     </p>
+                     {accumulatedSigns && (
+                      <p className="text-sm text-muted-foreground mt-4">
+                        <span className="font-semibold">Recognized:</span> {accumulatedSigns}
+                      </p>
+                    )}
                   </div>
                 )}
                  {!isTranslating && !translationResult && !isRecognizing && (
                   <div className="text-muted-foreground space-y-2">
                     <Bot size={48} className="mx-auto" />
-                    <p>Your translated text will appear here.</p>
+                    <p>Enable your camera and start signing.</p>
+                     <p className="text-sm">The translation will appear here.</p>
                   </div>
                 )}
               </CardContent>
