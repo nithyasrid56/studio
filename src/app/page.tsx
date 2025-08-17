@@ -4,7 +4,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Bot, Camera, Languages, Loader2, Scan, Volume2 } from "lucide-react";
+import { Bot, Camera, Languages, Loader2, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +42,7 @@ import { Label } from "@/components/ui/label";
 const formSchema = z.object({
   signLanguageText: z
     .string()
-    .min(2, "Please enter some text to translate.")
+    .min(1, "Please enter some text to translate.")
     .max(500),
   contextualInformation: z.string().max(500).optional(),
   targetLanguage: z.string({
@@ -79,6 +79,38 @@ export default function Home() {
     },
   });
 
+  const handleTranslation = React.useCallback(async (values: FormValues) => {
+    // Don't translate if a translation is already in progress.
+    if (isTranslating) return;
+    
+    setIsTranslating(true);
+    setTranslationResult(null);
+    try {
+      const result = await translateSignLanguage(values);
+      if (result.success && result.data) {
+        setTranslationResult(result.data.improvedTranslation);
+        if (!isRealtime) {
+          toast({
+            title: "Translation Successful",
+            description: "Your text has been translated.",
+          });
+        }
+      } else {
+        throw new Error(result.error || "An unknown error occurred.");
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Translation Failed",
+        description: error.message || "Could not get translation. Please try again.",
+      });
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [isTranslating, toast, isRealtime]);
+
+
   const handleRecognizeSign = React.useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !hasCameraPermission || isRecognizing) {
       return;
@@ -92,7 +124,6 @@ export default function Home() {
     const context = canvas.getContext("2d");
 
     if (context) {
-      // Flip the image horizontally
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -100,9 +131,19 @@ export default function Home() {
 
       try {
         const result = await recognizeSignLanguage({ imageDataUri });
-        if (result.success && result.data) {
-          form.setValue("signLanguageText", result.data.text);
-          if (!isRealtime) {
+        if (result.success && result.data?.text) {
+          const newSignLanguageText = result.data.text;
+          form.setValue("signLanguageText", newSignLanguageText);
+          
+          if (isRealtime) {
+            const currentValues = form.getValues();
+            if(currentValues.targetLanguage && newSignLanguageText){
+               handleTranslation({
+                ...currentValues,
+                signLanguageText: newSignLanguageText,
+              });
+            }
+          } else {
             toast({
               title: "Sign Recognized",
               description: "The initial translation has been populated.",
@@ -124,7 +165,7 @@ export default function Home() {
       }
     }
     setIsRecognizing(false);
-  }, [hasCameraPermission, form, toast, isRealtime, isRecognizing]);
+  }, [hasCameraPermission, form, toast, isRealtime, isRecognizing, handleTranslation]);
 
 
   React.useEffect(() => {
@@ -163,7 +204,11 @@ export default function Home() {
 
   React.useEffect(() => {
     if (isRealtime && hasCameraPermission) {
-      recognitionIntervalRef.current = setInterval(handleRecognizeSign, 2000); // every 2 seconds
+      // Clear any existing interval before setting a new one
+      if (recognitionIntervalRef.current) {
+        clearInterval(recognitionIntervalRef.current);
+      }
+      recognitionIntervalRef.current = setInterval(handleRecognizeSign, 3000); // every 3 seconds
     } else {
       if (recognitionIntervalRef.current) {
         clearInterval(recognitionIntervalRef.current);
@@ -176,33 +221,6 @@ export default function Home() {
       }
     };
   }, [isRealtime, hasCameraPermission, handleRecognizeSign]);
-
-
-  async function onSubmit(values: FormValues) {
-    setIsTranslating(true);
-    setTranslationResult(null);
-    try {
-      const result = await translateSignLanguage(values);
-      if (result.success && result.data) {
-        setTranslationResult(result.data.improvedTranslation);
-        toast({
-          title: "Translation Successful",
-          description: "Your text has been translated.",
-        });
-      } else {
-        throw new Error(result.error || "An unknown error occurred.");
-      }
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Translation Failed",
-        description: error.message || "Could not get translation. Please try again.",
-      });
-    } finally {
-      setIsTranslating(false);
-    }
-  }
 
   const speak = (text: string, lang: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
@@ -278,7 +296,7 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
+                <form onSubmit={form.handleSubmit(handleTranslation)}>
                   <CardContent className="space-y-6">
                     <FormField
                       control={form.control}
@@ -352,7 +370,7 @@ export default function Home() {
                     />
                   </CardContent>
                   <CardFooter>
-                    <Button type="submit" className="w-full" disabled={isTranslating}>
+                    <Button type="submit" className="w-full" disabled={isTranslating || isRealtime}>
                       {isTranslating ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -381,7 +399,12 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-center items-center text-center">
-                {isTranslating && (
+                {(isTranslating && isRealtime) && (
+                  <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                    <p className="font-semibold">Translating in real-time...</p>
+                  </div>
+                )}
+                {(isTranslating && !isRealtime) && (
                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="font-semibold">Translating your message...</p>
