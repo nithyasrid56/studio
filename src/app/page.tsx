@@ -70,7 +70,7 @@ export default function Home() {
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
   const [isRealtime, setIsRealtime] = React.useState(false);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -225,10 +225,10 @@ export default function Home() {
       <main className="container mx-auto p-4 py-8 md:p-8">
         <header className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
-            Speaksign
+            HelloHand
           </h1>
           <p className="text-lg text-muted-foreground mt-2">
-            Real-time sign language interpretation.
+            greeting through sign
           </p>
         </header>
 
@@ -265,21 +265,6 @@ export default function Home() {
                     </Alert>
                   )}
               </CardContent>
-              <CardFooter>
-                 <Button onClick={handleRecognizeSign} className="w-full" disabled={isRecognizing || !hasCameraPermission || isRealtime}>
-                      {isRecognizing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Recognizing...
-                        </>
-                      ) : (
-                        <>
-                           <Scan className="mr-2 h-4 w-4" />
-                           Recognize Sign (Once)
-                        </>
-                      )}
-                    </Button>
-              </CardFooter>
             </Card>
 
             <Card className="shadow-lg">
