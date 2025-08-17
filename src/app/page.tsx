@@ -4,7 +4,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Bot, Camera, Languages, Loader2, Volume2 } from "lucide-react";
+import { Bot, Camera, Languages, Loader2, Scan, Volume2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { translateSignLanguage } from "./actions";
+import { translateSignLanguage, recognizeSignLanguage } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
@@ -61,8 +61,10 @@ const languageMap: { [key: string]: string } = {
 export default function Home() {
   const [translationResult, setTranslationResult] = React.useState<string | null>(null);
   const [isTranslating, setIsTranslating] = React.useState(false);
+  const [isRecognizing, setIsRecognizing] = React.useState(false);
   const { toast } = useToast();
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
 
   React.useEffect(() => {
@@ -134,6 +136,53 @@ export default function Home() {
     }
   }
 
+  const handleRecognizeSign = async () => {
+    if (!videoRef.current || !canvasRef.current || !hasCameraPermission) {
+      toast({
+        variant: "destructive",
+        title: "Camera not ready",
+        description: "Please ensure camera permissions are enabled and the feed is active.",
+      });
+      return;
+    }
+
+    setIsRecognizing(true);
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+
+    if (context) {
+      // Flip the image horizontally
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageDataUri = canvas.toDataURL("image/jpeg");
+
+      try {
+        const result = await recognizeSignLanguage({ imageDataUri });
+        if (result.success && result.data) {
+          form.setValue("signLanguageText", result.data.text);
+          toast({
+            title: "Sign Recognized",
+            description: "The initial translation has been populated.",
+          });
+        } else {
+          throw new Error(result.error || "An unknown error occurred.");
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Recognition Failed",
+          description: error.message || "Could not recognize the sign. Please try again.",
+        });
+      }
+    }
+    setIsRecognizing(false);
+  };
+
+
   const speak = (text: string, lang: string) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -178,6 +227,7 @@ export default function Home() {
               <CardContent>
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden border">
                    <video ref={videoRef} className="w-full aspect-video rounded-md scale-x-[-1]" autoPlay muted playsInline />
+                   <canvas ref={canvasRef} className="hidden" />
                 </div>
                 {hasCameraPermission === false && (
                     <Alert variant="destructive" className="mt-4">
@@ -188,6 +238,21 @@ export default function Home() {
                     </Alert>
                   )}
               </CardContent>
+              <CardFooter>
+                 <Button onClick={handleRecognizeSign} className="w-full" disabled={isRecognizing || !hasCameraPermission}>
+                      {isRecognizing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Recognizing...
+                        </>
+                      ) : (
+                        <>
+                           <Scan className="mr-2 h-4 w-4" />
+                           Recognize Sign
+                        </>
+                      )}
+                    </Button>
+              </CardFooter>
             </Card>
 
             <Card className="shadow-lg">
@@ -211,14 +276,14 @@ export default function Home() {
                           <FormLabel>Initial Translation</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Enter the text translated from sign language..."
+                              placeholder="Click 'Recognize Sign' or enter text manually..."
                               className="resize-none"
                               rows={4}
                               {...field}
                             />
                           </FormControl>
                           <FormDescription>
-                            This is the initial text from the sign recognition model.
+                            This text is generated by the AI from your sign.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
