@@ -177,7 +177,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden border">
-                   <video ref={videoRef} className="w-full aspect-video rounded-md" autoPlay muted playsInline />
+                   <video ref={videoRef} className="w-full aspect-video rounded-md scale-x-[-1]" autoPlay muted playsInline />
                 </div>
                 {hasCameraPermission === false && (
                     <Alert variant="destructive" className="mt-4">
