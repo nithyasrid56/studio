@@ -33,7 +33,7 @@ export type RecognizeAndTranslateSignInput = z.infer<
 const RecognizeAndTranslateSignOutputSchema = z.object({
   recognizedSign: z
     .string()
-    .describe('The recognized word or short phrase from the sign language gesture.'),
+    .describe('The recognized word or short phrase from the sign language gesture. This will be empty if no hand is detected.'),
   translatedText: z
     .string()
     .describe('The translated text in the target language.'),
@@ -52,11 +52,13 @@ const prompt = ai.definePrompt({
   name: 'recognizeAndTranslateSignPrompt',
   input: {schema: RecognizeAndTranslateSignInputSchema},
   output: {schema: RecognizeAndTranslateSignOutputSchema},
-  prompt: `You are an expert in Indian Sign Language (ISL) and a linguist. Your task is twofold.
+  prompt: `You are an expert in Indian Sign Language (ISL) and a linguist. Your task is threefold.
 
-First, accurately interpret the provided image, focusing exclusively on hand gestures. Pay very close attention to the details: hand shape, palm orientation, location of the hand, and any movement. Ignore any other actions, including facial expressions or background elements. Identify the single word or short phrase being signed. This is the 'recognizedSign'.
+First, determine if there is a hand visible in the image. If there is no hand, or if the hand is not making a discernible gesture, return an empty string for 'recognizedSign' and the 'previousContext' for 'translatedText'.
 
-Second, take the 'recognizedSign', translate it into {{{targetLanguage}}}, and append it to the 'previousContext'. Then, review the entire combined text and correct it to form a complete, natural-sounding, and grammatically correct sentence in {{{targetLanguage}}}. This is the 'translatedText'. Do NOT edit or remove previous correct parts of the sentence, only append and correct grammar.
+Second, if a hand is visible, accurately interpret the provided image, focusing exclusively on hand gestures. Pay very close attention to the details: hand shape, palm orientation, location of the hand, and any movement. Ignore any other actions, including facial expressions or background elements. Identify the single word or short phrase being signed. This is the 'recognizedSign'.
+
+Third, take the 'recognizedSign', translate it into {{{targetLanguage}}}, and append it to the 'previousContext'. Then, review the entire combined text and correct it to form a complete, natural-sounding, and grammatically correct sentence in {{{targetLanguage}}}. This is the 'translatedText'. Do NOT edit or remove previous correct parts of the sentence, only append and correct grammar.
 
 Image: {{media url=imageDataUri}}
 Previous context (already translated text): {{{previousContext}}}

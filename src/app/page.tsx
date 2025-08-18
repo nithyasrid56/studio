@@ -106,7 +106,7 @@ export default function Home() {
           previousContext: translatedText,
         });
 
-        if (result.success && result.data) {
+        if (result.success && result.data && result.data.recognizedSign) {
           setTranslatedText(result.data.translatedText);
         }
       } catch (error: any) {
@@ -227,7 +227,8 @@ export default function Home() {
     } else {
       turnCameraOff();
     }
-  }, [isCameraOn, turnCameraOn]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCameraOn]);
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">
