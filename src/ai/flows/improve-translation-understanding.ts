@@ -52,13 +52,13 @@ const prompt = ai.definePrompt({
     schema: ImproveTranslationUnderstandingOutputSchema,
   },
   prompt: `You are an expert in linguistics, specializing in Indian Sign Language (ISL) and regional Indian languages.
-Your task is to convert a sequence of ISL words into a grammatically correct and natural-sounding sentence in the specified target language. ISL grammar is different from spoken languages, so you will need to reorder words and add appropriate grammar.
+Your task is to convert a sequence of ISL words into a single, grammatically correct, and natural-sounding sentence in the specified target language. The grammar of ISL is different from spoken languages, so you must reorder words and add appropriate grammatical structure. Do not explain the process or the signs.
 
 Sequence of ISL words: {{{signLanguageText}}}
 Contextual Information: {{{contextualInformation}}}
 Target Language: {{{targetLanguage}}}
 
-Convert the word sequence into a single, fluid sentence in {{{targetLanguage}}}.`,
+Your entire output must be only the final, translated sentence in {{{targetLanguage}}}.`,
 });
 
 const improveTranslationUnderstandingFlow = ai.defineFlow(
