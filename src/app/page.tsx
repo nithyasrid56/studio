@@ -9,12 +9,16 @@ import {
   Loader2,
   Volume2,
   XCircle,
+  Languages,
+  Info,
+  Mic,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -268,26 +272,41 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <audio ref={audioRef} className="hidden" />
-      <main className="container mx-auto p-4 max-w-2xl">
-        <header className="py-8 relative">
-          <h1 className="text-3xl md:text-4xl font-bold text-center text-primary-foreground bg-primary py-2 px-4 rounded-lg shadow-md">
-            Bhasha Setu
-          </h1>
-          <div className="absolute top-8 right-0 pt-2">
-            <ThemeToggleButton />
+      <main className="container mx-auto p-4 max-w-4xl">
+        <header className="flex justify-between items-center py-6">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-primary rounded-full">
+               <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="w-8 h-8 text-primary-foreground"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M14.47 2.47a.75.75 0 0 1 1.06 0l6 6a.75.75 0 0 1 0 1.06l-6 6a.75.75 0 1 1-1.06-1.06l4.72-4.72H9a5.25 5.25 0 1 0 0 10.5h3a.75.75 0 0 1 0 1.5H9a6.75 6.75 0 0 1 0-13.5h10.19l-4.72-4.72a.75.75 0 0 1 0-1.06Z"
+                    clipRule="evenodd"
+                  />
+                  <path d="M1.5 8.25a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H2.25A.75.75 0 0 1 1.5 8.25Zm0 4.5a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H2.25a.75.75 0 0 1-.75-.75Z" />
+                </svg>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Hello Hand
+            </h1>
           </div>
+          <ThemeToggleButton />
         </header>
 
-        <div className="space-y-6">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Camera className="text-accent"/>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Camera />
                   Camera Feed
-                </div>
+                </CardTitle>
                 <div className="flex items-center space-x-2">
-                  <Label htmlFor="camera-toggle">
+                  <Label htmlFor="camera-toggle" className="text-sm">
                     {isCameraOn ? "On" : "Off"}
                   </Label>
                   <Switch
@@ -296,120 +315,133 @@ export default function Home() {
                     onCheckedChange={setIsCameraOn}
                   />
                 </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden border-2 border-accent shadow-inner">
-                <video
-                  ref={videoRef}
-                  className="w-full aspect-video rounded-md scale-x-[-1]"
-                  autoPlay
-                  muted
-                  playsInline
-                />
-                <canvas ref={canvasRef} className="hidden" />
-              </div>
-              {hasCameraPermission === false && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertTitle>Camera Access Required</AlertTitle>
-                  <AlertDescription>
-                    Please allow camera access in your browser settings.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden border">
+                  <video
+                    ref={videoRef}
+                    className="w-full aspect-video rounded-lg scale-x-[-1]"
+                    autoPlay
+                    muted
+                    playsInline
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
+                </div>
+                {hasCameraPermission === false && (
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertTitle>Camera Access Required</AlertTitle>
+                    <AlertDescription>
+                      Please allow camera access in your browser settings.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Languages />
+                  Controls
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="language-select">Translate to</Label>
+                  <Select
+                    value={targetLanguage}
+                    onValueChange={setTargetLanguage}
+                  >
+                    <SelectTrigger id="language-select">
+                      <SelectValue placeholder="Select a language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(languageMap).map(([key, value]) => (
+                        <SelectItem key={key} value={key}>
+                          {value.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="context-input" className="flex items-center gap-2">
+                    <Info />
+                    Context (Optional)
+                  </Label>
+                  <Textarea
+                    id="context-input"
+                    placeholder="e.g., 'Ordering food' or 'At the hospital'"
+                    value={contextualInformation}
+                    onChange={(e) => setContextualInformation(e.target.value)}
+                    className="resize-none"
+                  />
+                </div>
+              </CardContent>
+               <CardFooter>
+                 <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={clearAll}
+                  >
+                    <XCircle />
+                    Clear Translation
+                  </Button>
+               </CardFooter>
+            </Card>
+          </div>
           
-          <Card className="shadow-lg">
+          <Card className="flex flex-col">
             <CardHeader>
-              <CardTitle className="text-accent">Translation</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Mic />
+                Translation
+              </CardTitle>
+              <CardDescription>
+                Your translated signs will appear here.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="min-h-[10rem] flex justify-center items-center text-center">
+            <CardContent className="flex-grow min-h-[20rem] flex justify-center items-center text-center">
               {isProcessing && !translatedText && (
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                  <p>Listening...</p>
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p>Listening for signs...</p>
                 </div>
               )}
 
               {translatedText && (
-                <p className="text-2xl md:text-3xl font-semibold">
+                <p className="text-2xl md:text-4xl font-bold text-foreground">
                   {translatedText}
                 </p>
               )}
 
               {!isProcessing && !translatedText && (
-                 <p className="text-muted-foreground">
-                   {isCameraOn ? "Start signing to see translation." : "Enable your camera to begin."}
+                 <p className="text-lg text-muted-foreground p-8">
+                   {isCameraOn ? "Start signing in front of the camera. The translation will appear here." : "Please enable your camera to begin translating."}
                  </p>
               )}
             </CardContent>
             {translatedText && (
-              <CardFooter className="flex-col sm:flex-row gap-2">
+              <CardFooter>
                 <Button
                   onClick={handlePlayAudio}
                   disabled={isSpeaking}
-                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                  className="w-full"
+                  size="lg"
                 >
                   {isSpeaking ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="animate-spin" />
                   ) : (
-                    <Volume2 className="mr-2 h-4 w-4" />
+                    <Volume2 />
                   )}
-                  Play Audio
+                  Speak
                 </Button>
               </CardFooter>
             )}
-          </Card>
-
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-accent">Controls</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="language-select">Translate to</Label>
-                <Select
-                  value={targetLanguage}
-                  onValueChange={setTargetLanguage}
-                >
-                  <SelectTrigger id="language-select">
-                    <SelectValue placeholder="Select a language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(languageMap).map(([key, value]) => (
-                      <SelectItem key={key} value={key}>
-                        {value.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="context-input">Context (Optional)</Label>
-                <Textarea
-                  id="context-input"
-                  placeholder="e.g., 'Ordering food' or 'At the hospital'"
-                  value={contextualInformation}
-                  onChange={(e) => setContextualInformation(e.target.value)}
-                  className="resize-none"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={clearAll}
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                Clear
-              </Button>
-            </CardContent>
           </Card>
         </div>
       </main>
     </div>
   );
 }
-
-    
