@@ -32,8 +32,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import {
-  translateSignLanguage,
-  recognizeSignLanguage,
+  recognizeAndTranslate,
   generateSpeech,
 } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -62,8 +61,7 @@ const languageMap: { [key: string]: string } = {
 
 export default function Home() {
   const [translationResult, setTranslationResult] = React.useState<string>("");
-  const [isTranslating, setIsTranslating] = React.useState(false);
-  const [isRecognizing, setIsRecognizing] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
   const { toast } = useToast();
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -79,39 +77,18 @@ export default function Home() {
     defaultValues: {},
   });
 
-  const handleTranslation = React.useCallback(async (signLanguageText: string, targetLanguage: string) => {
-    if (isTranslating || !signLanguageText || !targetLanguage) return;
-    
-    setIsTranslating(true);
-    try {
-      const result = await translateSignLanguage({
-        signLanguageText,
-        targetLanguage,
-        contextualInformation: "Translate for a general audience.",
-      });
-      if (result.success && result.data) {
-        setTranslationResult(prev => prev ? `${prev} ${result.data.improvedTranslation}` : result.data.improvedTranslation);
-      } else {
-        throw new Error(result.error || "An unknown error occurred.");
-      }
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Translation Failed",
-        description: error.message || "Could not get translation. Please try again.",
-      });
-    } finally {
-      setIsTranslating(false);
-    }
-  }, [isTranslating, toast]);
-
-  const handleRecognizeSign = React.useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !hasCameraPermission || isRecognizing) {
+  const handleRecognizeAndTranslate = React.useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || !hasCameraPermission || isProcessing) {
       return;
     }
 
-    setIsRecognizing(true);
+    const targetLanguage = form.getValues("targetLanguage");
+    if (!targetLanguage) {
+      // Don't run if no language is selected
+      return;
+    }
+
+    setIsProcessing(true);
     const video = videoRef.current;
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
@@ -125,25 +102,27 @@ export default function Home() {
       const imageDataUri = canvas.toDataURL("image/jpeg");
 
       try {
-        const result = await recognizeSignLanguage({ imageDataUri });
-        if (result.success && result.data?.text) {
-          const newWord = result.data.text;
-          setAccumulatedSigns(prev => prev ? `${prev} ${newWord}`: newWord);
-          
-          const currentValues = form.getValues();
-          if(currentValues.targetLanguage && newWord){
-              handleTranslation(newWord, currentValues.targetLanguage);
-          }
+        const result = await recognizeAndTranslate({ 
+          imageDataUri,
+          targetLanguage: targetLanguage,
+          previousContext: translationResult,
+        });
+
+        if (result.success && result.data?.translatedText) {
+          const { recognizedSign, translatedText } = result.data;
+          setAccumulatedSigns(prev => prev ? `${prev} ${recognizedSign}` : recognizedSign);
+          setTranslationResult(prev => prev ? `${prev} ${translatedText}` : translatedText);
+        } else {
+           // Don't show toast for failed recognition in real-time to avoid spamming user
         }
       } catch (error: any) {
          // Don't show toast for failed recognition in real-time
       }
     }
-    setIsRecognizing(false);
-  }, [hasCameraPermission, form, isRecognizing, handleTranslation]);
+    setIsProcessing(false);
+  }, [hasCameraPermission, form, isProcessing, translationResult]);
   
   const clearAll = () => {
-    form.reset();
     setTranslationResult("");
     setAccumulatedSigns("");
     if (audioRef.current) {
@@ -160,8 +139,9 @@ export default function Home() {
     if (recognitionIntervalRef.current) {
       clearInterval(recognitionIntervalRef.current);
     }
-    recognitionIntervalRef.current = setInterval(handleRecognizeSign, 3000); // every 3 seconds
-  }, [handleRecognizeSign]);
+    // Reduced interval for lower latency
+    recognitionIntervalRef.current = setInterval(handleRecognizeAndTranslate, 1500);
+  }, [handleRecognizeAndTranslate]);
 
   const stopRecognition = () => {
     if (recognitionIntervalRef.current) {
@@ -181,7 +161,6 @@ export default function Home() {
       setIsCameraOn(false);
     } else {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.error("Camera API not supported in this browser.");
         setHasCameraPermission(false);
         toast({
           variant: "destructive",
@@ -194,11 +173,11 @@ export default function Home() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         setHasCameraPermission(true);
-        setIsCameraOn(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
              startRecognition();
+             setIsCameraOn(true);
           }
         }
       } catch (error) {
@@ -309,14 +288,13 @@ export default function Home() {
                             onValueChange={(value) => {
                               field.onChange(value);
                               // When language changes, clear previous results
-                              setTranslationResult("");
-                              setAccumulatedSigns("");
+                              clearAll();
                             }}
                             defaultValue={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select a language" />
+                                <SelectValue placeholder="Select a language to begin" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -352,7 +330,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-center items-center text-center">
                 
-                {(isRecognizing || isTranslating) && !translationResult && (
+                {isProcessing && !translationResult && (
                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="font-semibold">Listening for signs...</p>
@@ -372,10 +350,14 @@ export default function Home() {
                   </div>
                 )}
 
-                 {!isRecognizing && !isTranslating && !translationResult && (
+                 {!isProcessing && !translationResult && (
                   <div className="text-muted-foreground space-y-2">
                     <Bot size={48} className="mx-auto" />
-                    <p>Enable your camera and start signing.</p>
+                     {isCameraOn ? (
+                       <p>Start signing.</p>
+                     ) : (
+                       <p>Enable your camera to start.</p>
+                     )}
                      <p className="text-sm">The translation will appear here.</p>
                   </div>
                 )}
@@ -405,10 +387,7 @@ export default function Home() {
                    <Button
                     variant="ghost"
                     className="w-full sm:w-auto"
-                    onClick={() => {
-                       setTranslationResult("");
-                       setAccumulatedSigns("");
-                    }}
+                    onClick={clearAll}
                   >
                     <XCircle className="mr-2 h-4 w-4" /> Clear
                   </Button>
