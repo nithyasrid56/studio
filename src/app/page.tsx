@@ -107,7 +107,11 @@ export default function Home() {
         });
 
         if (result.success && result.data && result.data.recognizedSign) {
-          setTranslatedText(result.data.translatedText);
+          setTranslatedText((prev) =>
+            prev
+              ? `${prev} ${result.data!.recognizedSign}`
+              : result.data!.recognizedSign
+          );
         }
       } catch (error: any) {
         // Fail silently in real-time to avoid spamming user
@@ -236,10 +240,10 @@ export default function Home() {
       <main className="container mx-auto p-4 py-8 md:p-8">
         <header className="text-center mb-10 relative">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
-            Bhasha Setu
+            Hello Hand
           </h1>
           <p className="text-lg text-muted-foreground mt-2">
-            Your friendly sign language interpreter.
+            Translate signs into words, one gesture at a time.
           </p>
           <div className="absolute top-0 right-0">
             <ThemeToggleButton />

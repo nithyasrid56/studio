@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Bhasha Setu',
-  description: 'Real-time sign language interpretation.',
+  title: 'Hello Hand',
+  description: 'From gestures to words.',
 };
 
 export default function RootLayout({
