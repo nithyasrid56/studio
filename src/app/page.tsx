@@ -25,7 +25,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   recognizeAndTranslate,
-  generateSpeech,
 } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
@@ -55,7 +54,6 @@ const languageMap: { [key: string]: { name: string; code: string } } = {
 };
 
 export default function Home() {
-  const [recognizedText, setRecognizedText] = React.useState<string>("");
   const [translatedText, setTranslatedText] = React.useState<string>("");
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isSpeaking, setIsSpeaking] = React.useState(false);
@@ -106,9 +104,6 @@ export default function Home() {
 
         if (result.success && result.data) {
           if (result.data.recognizedSign) {
-            const newRecognizedText =
-              `${recognizedText} ${result.data.recognizedSign}`.trim();
-            setRecognizedText(newRecognizedText);
             setTranslatedText(result.data.translatedText);
           }
         }
@@ -122,7 +117,6 @@ export default function Home() {
     isProcessing,
     targetLanguage,
     translatedText,
-    recognizedText,
   ]);
 
   const handlePlayAudio = async () => {
@@ -158,7 +152,6 @@ export default function Home() {
   };
 
   const clearAll = () => {
-    setRecognizedText("");
     setTranslatedText("");
     toast({
       title: "Cleared",
@@ -345,10 +338,6 @@ export default function Home() {
 
                 {translatedText && (
                   <div className="w-full">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      <span className="font-semibold">ISL Recognized:</span>{" "}
-                      {recognizedText}
-                    </p>
                     <p className="text-2xl md:text-3xl font-semibold text-accent-foreground bg-accent p-6 rounded-lg shadow-inner">
                       {translatedText}
                     </p>
