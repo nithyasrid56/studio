@@ -167,7 +167,7 @@ export default function Home() {
     if (recognitionIntervalRef.current) {
       clearInterval(recognitionIntervalRef.current);
     }
-    recognitionIntervalRef.current = setInterval(handleRecognizeSign, 1500);
+    recognitionIntervalRef.current = setInterval(handleRecognizeSign, 1000);
   }, [handleRecognizeSign]);
 
   const stopRecognition = () => {
@@ -213,7 +213,7 @@ export default function Home() {
     }
   }, [startRecognition, toast]);
 
-  const turnCameraOff = () => {
+  const turnCameraOff = React.useCallback(() => {
     stopRecognition();
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
@@ -221,7 +221,7 @@ export default function Home() {
       videoRef.current.srcObject = null;
     }
     setIsCameraOn(false);
-  };
+  }, []);
   
   React.useEffect(() => {
     if (isCameraOn) {
@@ -229,8 +229,12 @@ export default function Home() {
     } else {
       turnCameraOff();
     }
+    
+    return () => {
+      stopRecognition();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCameraOn]);
+  }, [isCameraOn, turnCameraOn, turnCameraOff]);
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">
