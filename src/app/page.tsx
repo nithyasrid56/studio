@@ -52,6 +52,8 @@ const languageMap: { [key: string]: { name: string; code: string } } = {
   gujarati: { name: "Gujarati", code: "gu-IN" },
   kannada: { name: "Kannada", code: "kn-IN" },
   malayalam: { name: "Malayalam", code: "ml-IN" },
+  punjabi: { name: "Punjabi", code: "pa-IN" },
+  urdu: { name: "Urdu", code: "ur-IN" },
 };
 
 export default function Home() {
