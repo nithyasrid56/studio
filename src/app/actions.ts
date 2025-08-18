@@ -1,24 +1,23 @@
 "use server";
 
 import {
-  improveTranslationUnderstanding,
-  type ImproveTranslationUnderstandingInput,
-} from "@/ai/flows/improve-translation-understanding";
-import {
-  recognizeSign,
-  type RecognizeSignInput,
-} from "@/ai/flows/recognize-sign";
+  recognizeAndTranslateSign,
+  type RecognizeAndTranslateSignInput,
+} from "@/ai/flows/recognize-and-translate-sign";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 
-export async function recognizeSignLanguage(data: RecognizeSignInput) {
+export async function recognizeAndTranslate(
+  data: RecognizeAndTranslateSignInput
+) {
   try {
-    const result = await recognizeSign(data);
+    const result = await recognizeAndTranslateSign(data);
     return { success: true, data: result };
   } catch (error) {
-    console.error("Error in recognizeSignLanguage action:", error);
+    console.error("Error in recognizeAndTranslate action:", error);
     return {
       success: false,
-      error: "An unexpected error occurred during recognition. Please try again.",
+      error:
+        "An unexpected error occurred during translation. Please try again.",
     };
   }
 }
@@ -31,22 +30,8 @@ export async function generateSpeech(text: string, language: string) {
     console.error("Error in generateSpeech action:", error);
     return {
       success: false,
-      error: "An unexpected error occurred while generating speech. Please try again.",
-    };
-  }
-}
-
-export async function translateSignLanguage(
-  data: ImproveTranslationUnderstandingInput
-) {
-  try {
-    const result = await improveTranslationUnderstanding(data);
-    return { success: true, data: result };
-  } catch (error) {
-    console.error("Error in translateSignLanguage action:", error);
-    return {
-      success: false,
-      error: "An unexpected error occurred while translating. Please try again later.",
+      error:
+        "An unexpected error occurred while generating speech. Please try again.",
     };
   }
 }

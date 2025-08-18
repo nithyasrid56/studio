@@ -4,7 +4,14 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Bot, Camera, Languages, Loader2, XCircle } from "lucide-react";
+import {
+  Bot,
+  Camera,
+  Languages,
+  Loader2,
+  Volume2,
+  XCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,25 +23,48 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { recognizeSignLanguage } from "./actions";
+import { recognizeAndTranslate, generateSpeech } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formSchema = z.object({});
 
 type FormValues = z.infer<typeof formSchema>;
 
+const languageMap: { [key: string]: { name: string; code: string } } = {
+  english: { name: "English", code: "en-US" },
+  hindi: { name: "Hindi", code: "hi-IN" },
+  tamil: { name: "Tamil", code: "ta-IN" },
+  bengali: { name: "Bengali", code: "bn-IN" },
+  telugu: { name: "Telugu", code: "te-IN" },
+  marathi: { name: "Marathi", code: "mr-IN" },
+  gujarati: { name: "Gujarati", code: "gu-IN" },
+  kannada: { name: "Kannada", code: "kn-IN" },
+  malayalam: { name: "Malayalam", code: "ml-IN" },
+};
+
 export default function Home() {
   const [recognizedText, setRecognizedText] = React.useState<string>("");
+  const [translatedText, setTranslatedText] = React.useState<string>("");
   const [isProcessing, setIsProcessing] = React.useState(false);
+  const [isSpeaking, setIsSpeaking] = React.useState(false);
   const { toast } = useToast();
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
   const [hasCameraPermission, setHasCameraPermission] =
     React.useState<boolean | null>(null);
   const [isCameraOn, setIsCameraOn] = React.useState(false);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [targetLanguage, setTargetLanguage] = React.useState<string>("english");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -65,26 +95,67 @@ export default function Home() {
       const imageDataUri = canvas.toDataURL("image/jpeg");
 
       try {
-        const result = await recognizeSignLanguage({
+        const result = await recognizeAndTranslate({
           imageDataUri,
+          targetLanguage: languageMap[targetLanguage].name,
+          previousContext: translatedText,
         });
 
-        if (result.success && result.data?.text) {
-          setRecognizedText(
-            (prev) => (prev ? `${prev} ${result.data.text}` : result.data.text)
-          );
-        } else {
-          // Don't show toast for failed recognition in real-time to avoid spamming user
+        if (result.success && result.data) {
+          if (result.data.recognizedSign) {
+            setRecognizedText(
+              (prev) =>
+                `${prev} ${result.data.recognizedSign}`.trim()
+            );
+          }
+          if (result.data.translatedText) {
+            setTranslatedText(
+              (prev) => `${prev} ${result.data.translatedText}`.trim()
+            );
+          }
         }
       } catch (error: any) {
-        // Don't show toast for failed recognition in real-time
+        // Fail silently in real-time to avoid spamming user
       }
     }
     setIsProcessing(false);
-  }, [hasCameraPermission, isProcessing]);
+  }, [hasCameraPermission, isProcessing, targetLanguage, translatedText]);
+
+  const handlePlayAudio = async () => {
+    if (!translatedText || isSpeaking) return;
+
+    setIsSpeaking(true);
+    try {
+      const result = await generateSpeech(
+        translatedText,
+        languageMap[targetLanguage].code
+      );
+      if (result.success && result.data?.audioDataUri && audioRef.current) {
+        audioRef.current.src = result.data.audioDataUri;
+        audioRef.current.play();
+        audioRef.current.onended = () => setIsSpeaking(false);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Audio Error",
+          description:
+            result.error || "Could not play audio. Please try again.",
+        });
+        setIsSpeaking(false);
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Audio Error",
+        description: "An unexpected error occurred. Please try again.",
+      });
+      setIsSpeaking(false);
+    }
+  };
 
   const clearAll = () => {
     setRecognizedText("");
+    setTranslatedText("");
     toast({
       title: "Cleared",
       description: "The conversation has been reset.",
@@ -153,6 +224,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">
+       <audio ref={audioRef} className="hidden" />
       <main className="container mx-auto p-4 py-8 md:p-8">
         <header className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
@@ -215,10 +287,28 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Languages className="text-primary" />
-                  Conversation Control
+                  Language & Controls
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="language-select">Translate to</Label>
+                  <Select
+                    value={targetLanguage}
+                    onValueChange={setTargetLanguage}
+                  >
+                    <SelectTrigger id="language-select">
+                      <SelectValue placeholder="Select a language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(languageMap).map(([key, value]) => (
+                        <SelectItem key={key} value={key}>
+                          {value.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -236,28 +326,32 @@ export default function Home() {
           <div className="lg:sticky top-8">
             <Card className="shadow-lg min-h-[30rem] flex flex-col">
               <CardHeader>
-                <CardTitle>Text Output</CardTitle>
+                <CardTitle>Translation Output</CardTitle>
                 <CardDescription>
-                  The translated text from recognized signs will appear here.
+                  The translated text will appear here.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-center items-center text-center">
-                {isProcessing && !recognizedText && (
+                {isProcessing && !translatedText && (
                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="font-semibold">Listening for signs...</p>
                   </div>
                 )}
 
-                {recognizedText && (
+                {translatedText && (
                   <div className="w-full">
-                    <p className="text-2xl md:text-3xl font-semibold text-accent-foreground bg-accent p-6 rounded-lg shadow-inner">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      <span className="font-semibold">ISL Recognized:</span>{" "}
                       {recognizedText}
+                    </p>
+                    <p className="text-2xl md:text-3xl font-semibold text-accent-foreground bg-accent p-6 rounded-lg shadow-inner">
+                      {translatedText}
                     </p>
                   </div>
                 )}
 
-                {!isProcessing && !recognizedText && (
+                {!isProcessing && !translatedText && (
                   <div className="text-muted-foreground space-y-2">
                     <Bot size={48} className="mx-auto" />
                     {isCameraOn ? (
@@ -271,8 +365,20 @@ export default function Home() {
                   </div>
                 )}
               </CardContent>
-              {recognizedText && (
+              {translatedText && (
                 <CardFooter className="flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={handlePlayAudio}
+                    disabled={isSpeaking}
+                    className="w-full"
+                  >
+                    {isSpeaking ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Volume2 className="mr-2 h-4 w-4" />
+                    )}
+                    Play Audio
+                  </Button>
                   <Button
                     variant="ghost"
                     className="w-full sm:w-auto"
