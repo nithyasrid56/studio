@@ -270,21 +270,21 @@ export default function Home() {
       <audio ref={audioRef} className="hidden" />
       <main className="container mx-auto p-4 max-w-2xl">
         <header className="py-8 relative">
-          <h1 className="text-3xl md:text-4xl font-bold text-center">
-            Hello Hand
+          <h1 className="text-3xl md:text-4xl font-bold text-center text-primary-foreground bg-primary py-2 px-4 rounded-lg shadow-md">
+            Bhasha Setu
           </h1>
-          <div className="absolute top-8 right-0">
+          <div className="absolute top-8 right-0 pt-2">
             <ThemeToggleButton />
           </div>
         </header>
 
         <div className="space-y-6">
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Camera />
-                  Camera
+                  <Camera className="text-accent"/>
+                  Camera Feed
                 </div>
                 <div className="flex items-center space-x-2">
                   <Label htmlFor="camera-toggle">
@@ -299,7 +299,7 @@ export default function Home() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden border">
+              <div className="aspect-video bg-muted rounded-md flex items-center justify-center overflow-hidden border-2 border-accent shadow-inner">
                 <video
                   ref={videoRef}
                   className="w-full aspect-video rounded-md scale-x-[-1]"
@@ -320,14 +320,14 @@ export default function Home() {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Translation</CardTitle>
+              <CardTitle className="text-accent">Translation</CardTitle>
             </CardHeader>
             <CardContent className="min-h-[10rem] flex justify-center items-center text-center">
               {isProcessing && !translatedText && (
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin text-accent" />
                   <p>Listening...</p>
                 </div>
               )}
@@ -349,7 +349,7 @@ export default function Home() {
                 <Button
                   onClick={handlePlayAudio}
                   disabled={isSpeaking}
-                  className="w-full"
+                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                 >
                   {isSpeaking ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -362,9 +362,9 @@ export default function Home() {
             )}
           </Card>
 
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Controls</CardTitle>
+              <CardTitle className="text-accent">Controls</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
