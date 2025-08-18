@@ -54,13 +54,13 @@ const prompt = ai.definePrompt({
   output: {schema: RecognizeAndTranslateSignOutputSchema},
   prompt: `You are an expert in Indian Sign Language (ISL) and a linguist. Your task is to do two things:
 1. Analyze the provided image to determine the single word or short phrase being signed.
-2. Translate that single recognized sign into the target language. Use the previous context to ensure grammatical correctness and coherence.
+2. Translate that single recognized sign into the target language. Use the previous context to ensure the new translation fits grammatically and coherently with what was said before. The translated text should be a complete, natural-sounding sentence.
 
 Image: {{media url=imageDataUri}}
 Previous context (already translated text): {{{previousContext}}}
 Target Language: {{{targetLanguage}}}
 
-Your response must contain both the newly recognized sign and its translation.`,
+Your response must contain both the newly recognized sign and the updated, grammatically correct full translated sentence.`,
 });
 
 const recognizeAndTranslateSignFlow = ai.defineFlow(

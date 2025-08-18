@@ -26,7 +26,6 @@ import { useToast } from "@/hooks/use-toast";
 import {
   recognizeAndTranslate,
   generateSpeech,
-  improveTranslation,
 } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
@@ -75,25 +74,6 @@ export default function Home() {
     defaultValues: {},
   });
 
-  const handleImproveTranslation = React.useCallback(
-    async (rawText: string) => {
-      if (!rawText) return;
-      try {
-        const result = await improveTranslation({
-          signLanguageText: rawText,
-          contextualInformation: "A person is signing in real-time.",
-          targetLanguage: languageMap[targetLanguage].name,
-        });
-        if (result.success && result.data) {
-          setTranslatedText(result.data.improvedTranslation);
-        }
-      } catch (error) {
-        // Fail silently
-      }
-    },
-    [targetLanguage]
-  );
-
   const handleRecognizeSign = React.useCallback(async () => {
     if (
       !videoRef.current ||
@@ -129,7 +109,7 @@ export default function Home() {
             const newRecognizedText =
               `${recognizedText} ${result.data.recognizedSign}`.trim();
             setRecognizedText(newRecognizedText);
-            handleImproveTranslation(newRecognizedText);
+            setTranslatedText(result.data.translatedText);
           }
         }
       } catch (error: any) {
@@ -143,7 +123,6 @@ export default function Home() {
     targetLanguage,
     translatedText,
     recognizedText,
-    handleImproveTranslation,
   ]);
 
   const handlePlayAudio = async () => {
