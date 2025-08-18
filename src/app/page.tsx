@@ -275,20 +275,16 @@ export default function Home() {
       <main className="container mx-auto p-4 max-w-4xl">
         <header className="flex justify-between items-center py-6">
           <div className="flex items-center gap-3">
-             <div className="p-2 bg-primary rounded-full">
-               <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="w-8 h-8 text-primary-foreground"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M14.47 2.47a.75.75 0 0 1 1.06 0l6 6a.75.75 0 0 1 0 1.06l-6 6a.75.75 0 1 1-1.06-1.06l4.72-4.72H9a5.25 5.25 0 1 0 0 10.5h3a.75.75 0 0 1 0 1.5H9a6.75 6.75 0 0 1 0-13.5h10.19l-4.72-4.72a.75.75 0 0 1 0-1.06Z"
-                    clipRule="evenodd"
-                  />
-                  <path d="M1.5 8.25a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H2.25A.75.75 0 0 1 1.5 8.25Zm0 4.5a.75.75 0 0 1 .75-.75h3.75a.75.75 0 0 1 0 1.5H2.25a.75.75 0 0 1-.75-.75Z" />
-                </svg>
+            <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-8 h-8 text-primary-foreground"
+              >
+                <path d="M7.5 3.75A1.5 1.5 0 0 0 6 5.25v13.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V15a.75.75 0 0 1 1.5 0v3.75a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V5.25a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3V9a.75.75 0 0 1-1.5 0V5.25a1.5 1.5 0 0 0-1.5-1.5h-6Z" />
+                <path d="M18.013 11.416a.75.75 0 0 1 .23-1.033l1.202-.801a.75.75 0 0 1 .802 1.233l-1.202.801a.75.75 0 0 1-1.032-.23Zm-3.18.963.801 1.202a.75.75 0 1 1-1.233.802l-.801-1.202a.75.75 0 0 1 1.233-.802ZM21 14.25a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75Z" />
+              </svg>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">
               Hello Hand
@@ -429,6 +425,7 @@ export default function Home() {
                   disabled={isSpeaking}
                   className="w-full"
                   size="lg"
+                  variant="default"
                 >
                   {isSpeaking ? (
                     <Loader2 className="animate-spin" />
