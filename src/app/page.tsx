@@ -25,6 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   recognizeAndTranslate,
+  improveTranslation,
 } from "./actions";
 import { generateSpeech } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -58,6 +59,7 @@ const languageMap: { [key: string]: { name: string; code: string } } = {
 };
 
 export default function Home() {
+  const [englishText, setEnglishText] = React.useState<string>("");
   const [translatedText, setTranslatedText] = React.useState<string>("");
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [isSpeaking, setIsSpeaking] = React.useState(false);
@@ -106,11 +108,24 @@ export default function Home() {
         });
 
         if (result.success && result.data && result.data.recognizedSign) {
-          setTranslatedText((prev) =>
-            prev
-              ? `${prev} ${result.data!.recognizedSign}`
-              : result.data!.recognizedSign
-          );
+          const newEnglishText = englishText
+            ? `${englishText} ${result.data.recognizedSign}`
+            : result.data.recognizedSign;
+          setEnglishText(newEnglishText);
+
+          if (targetLanguage === 'english') {
+            setTranslatedText(newEnglishText);
+          } else {
+            const translationResult = await improveTranslation({
+              signLanguageText: newEnglishText,
+              contextualInformation: "",
+              targetLanguage: languageMap[targetLanguage].name,
+            });
+
+            if (translationResult.success && translationResult.data) {
+              setTranslatedText(translationResult.data.improvedTranslation);
+            }
+          }
         }
       } catch (error: any) {
         // Fail silently in real-time to avoid spamming user
@@ -121,6 +136,7 @@ export default function Home() {
     hasCameraPermission,
     isProcessing,
     targetLanguage,
+    englishText,
   ]);
 
   const handlePlayAudio = async () => {
@@ -156,6 +172,7 @@ export default function Home() {
   };
 
   const clearAll = () => {
+    setEnglishText("");
     setTranslatedText("");
     toast({
       title: "Cleared",
@@ -235,6 +252,11 @@ export default function Home() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCameraOn, turnCameraOn, turnCameraOff]);
+  
+  React.useEffect(() => {
+    setEnglishText('');
+    setTranslatedText('');
+  }, [targetLanguage]);
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">

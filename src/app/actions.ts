@@ -4,6 +4,10 @@ import {
   recognizeAndTranslateSign,
   type RecognizeAndTranslateSignInput,
 } from "@/ai/flows/recognize-and-translate-sign";
+import {
+  improveTranslationUnderstanding,
+  type ImproveTranslationUnderstandingInput,
+} from "@/ai/flows/improve-translation-understanding";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 
 export async function recognizeAndTranslate(
@@ -18,6 +22,22 @@ export async function recognizeAndTranslate(
       success: false,
       error:
         "An unexpected error occurred during translation. Please try again.",
+    };
+  }
+}
+
+export async function improveTranslation(
+  data: ImproveTranslationUnderstandingInput
+) {
+  try {
+    const result = await improveTranslationUnderstanding(data);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error in improveTranslation action:", error);
+    return {
+      success: false,
+      error:
+        "An unexpected error occurred during translation improvement. Please try again.",
     };
   }
 }
