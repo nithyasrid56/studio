@@ -61,19 +61,19 @@ const languageMap: { [key: string]: string } = {
 };
 
 export default function Home() {
-  const [translationResult, setTranslationResult] = React.useState<string | null>(null);
-  const [displayedTranslation, setDisplayedTranslation] = React.useState<string>("");
+  const [translationResult, setTranslationResult] = React.useState<string>("");
   const [isTranslating, setIsTranslating] = React.useState(false);
   const [isRecognizing, setIsRecognizing] = React.useState(false);
   const { toast } = useToast();
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
+  const [isCameraOn, setIsCameraOn] = React.useState(false);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [accumulatedSigns, setAccumulatedSigns] = React.useState("");
-
+  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {},
@@ -83,8 +83,6 @@ export default function Home() {
     if (isTranslating || !signLanguageText || !targetLanguage) return;
     
     setIsTranslating(true);
-    setTranslationResult(null);
-    setDisplayedTranslation("");
     try {
       const result = await translateSignLanguage({
         signLanguageText,
@@ -92,7 +90,7 @@ export default function Home() {
         contextualInformation: "Translate for a general audience.",
       });
       if (result.success && result.data) {
-        setTranslationResult(result.data.improvedTranslation);
+        setTranslationResult(prev => prev ? `${prev} ${result.data.improvedTranslation}` : result.data.improvedTranslation);
       } else {
         throw new Error(result.error || "An unknown error occurred.");
       }
@@ -130,27 +128,23 @@ export default function Home() {
         const result = await recognizeSignLanguage({ imageDataUri });
         if (result.success && result.data?.text) {
           const newWord = result.data.text;
-          const newSignLanguageText = accumulatedSigns ? `${accumulatedSigns} ${newWord}` : newWord;
-          setAccumulatedSigns(newSignLanguageText);
+          setAccumulatedSigns(prev => prev ? `${prev} ${newWord}`: newWord);
           
           const currentValues = form.getValues();
-          if(currentValues.targetLanguage && newSignLanguageText){
-              handleTranslation(newSignLanguageText, currentValues.targetLanguage);
+          if(currentValues.targetLanguage && newWord){
+              handleTranslation(newWord, currentValues.targetLanguage);
           }
-        } else {
-           // Don't show toast for failed recognition in real-time
         }
       } catch (error: any) {
          // Don't show toast for failed recognition in real-time
       }
     }
     setIsRecognizing(false);
-  }, [hasCameraPermission, form, isRecognizing, handleTranslation, accumulatedSigns]);
+  }, [hasCameraPermission, form, isRecognizing, handleTranslation]);
   
   const clearAll = () => {
     form.reset();
-    setTranslationResult(null);
-    setDisplayedTranslation("");
+    setTranslationResult("");
     setAccumulatedSigns("");
     if (audioRef.current) {
       audioRef.current.pause();
@@ -162,8 +156,30 @@ export default function Home() {
     });
   };
 
-  React.useEffect(() => {
-    const getCameraPermission = async () => {
+  const startRecognition = React.useCallback(() => {
+    if (recognitionIntervalRef.current) {
+      clearInterval(recognitionIntervalRef.current);
+    }
+    recognitionIntervalRef.current = setInterval(handleRecognizeSign, 3000); // every 3 seconds
+  }, [handleRecognizeSign]);
+
+  const stopRecognition = () => {
+    if (recognitionIntervalRef.current) {
+      clearInterval(recognitionIntervalRef.current);
+      recognitionIntervalRef.current = null;
+    }
+  };
+
+  const toggleCamera = async () => {
+    if (isCameraOn) {
+      stopRecognition();
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      setIsCameraOn(false);
+    } else {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         console.error("Camera API not supported in this browser.");
         setHasCameraPermission(false);
@@ -181,6 +197,9 @@ export default function Home() {
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+             startRecognition();
+          }
         }
       } catch (error) {
         console.error("Error accessing camera:", error);
@@ -191,53 +210,10 @@ export default function Home() {
           description: "Please enable camera permissions in your browser settings to use this feature.",
         });
       }
-    };
-
-    getCameraPermission();
-  }, [toast]);
-
-  React.useEffect(() => {
-    if (hasCameraPermission) {
-      if (recognitionIntervalRef.current) {
-        clearInterval(recognitionIntervalRef.current);
-      }
-      recognitionIntervalRef.current = setInterval(handleRecognizeSign, 3000); // every 3 seconds
-    } else {
-      if (recognitionIntervalRef.current) {
-        clearInterval(recognitionIntervalRef.current);
-      }
+      setIsCameraOn(true);
     }
-
-    return () => {
-      if (recognitionIntervalRef.current) {
-        clearInterval(recognitionIntervalRef.current);
-      }
-    };
-  }, [hasCameraPermission, handleRecognizeSign]);
+  };
   
-  React.useEffect(() => {
-    if (!translationResult) {
-      setDisplayedTranslation("");
-      return;
-    }
-
-    const words = translationResult.split(/\s+/);
-    let currentText = "";
-    let wordIndex = 0;
-
-    const intervalId = setInterval(() => {
-      if (wordIndex < words.length) {
-        currentText = `${currentText} ${words[wordIndex]}`.trim();
-        setDisplayedTranslation(currentText);
-        wordIndex++;
-      } else {
-        clearInterval(intervalId);
-      }
-    }, 150); // Adjust the speed of word appearance here
-
-    return () => clearInterval(intervalId);
-  }, [translationResult]);
-
   const speak = async (text: string, lang: string) => {
     if (!text || !lang || isGeneratingAudio) return;
 
@@ -288,6 +264,10 @@ export default function Home() {
                     <Camera className="text-primary" />
                     Live Camera Feed
                    </div>
+                   <div className="flex items-center space-x-2">
+                      <Label htmlFor="camera-toggle">{isCameraOn ? "On" : "Off"}</Label>
+                      <Switch id="camera-toggle" checked={isCameraOn} onCheckedChange={toggleCamera} />
+                    </div>
                 </CardTitle>
                 <CardDescription>
                   Your gestures are captured and translated in real-time.
@@ -326,7 +306,12 @@ export default function Home() {
                         <FormItem>
                           <FormLabel>Target Language</FormLabel>
                           <Select
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // When language changes, clear previous results
+                              setTranslationResult("");
+                              setAccumulatedSigns("");
+                            }}
                             defaultValue={field.value}
                           >
                             <FormControl>
@@ -367,25 +352,17 @@ export default function Home() {
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-center items-center text-center">
                 
-                {isRecognizing && !translationResult && (
+                {(isRecognizing || isTranslating) && !translationResult && (
                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="font-semibold">Listening for signs...</p>
                   </div>
                 )}
-
-                {isTranslating && (
-                  <div className="flex flex-col items-center gap-4 text-muted-foreground">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="font-semibold">Translating your message...</p>
-                    <p className="text-sm">AI is working its magic.</p>
-                  </div>
-                )}
                 
-                {!isTranslating && displayedTranslation && (
+                {translationResult && (
                   <div className="w-full">
                     <p className="text-2xl md:text-3xl font-semibold text-accent-foreground bg-accent p-6 rounded-lg shadow-inner">
-                      {displayedTranslation}
+                      {translationResult}
                     </p>
                      {accumulatedSigns && (
                       <p className="text-sm text-muted-foreground mt-4">
@@ -394,7 +371,8 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                 {!isTranslating && !displayedTranslation && !isRecognizing && (
+
+                 {!isRecognizing && !isTranslating && !translationResult && (
                   <div className="text-muted-foreground space-y-2">
                     <Bot size={48} className="mx-auto" />
                     <p>Enable your camera and start signing.</p>
@@ -402,15 +380,15 @@ export default function Home() {
                   </div>
                 )}
               </CardContent>
-              {translationResult && !isTranslating && (
-                <CardFooter>
+              {translationResult && (
+                <CardFooter className="flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
                     className="w-full"
                     onClick={() =>
                       speak(translationResult, form.getValues("targetLanguage"))
                     }
-                    disabled={isGeneratingAudio || displayedTranslation !== translationResult}
+                    disabled={isGeneratingAudio}
                   >
                     {isGeneratingAudio ? (
                        <>
@@ -423,6 +401,16 @@ export default function Home() {
                         Play Audio
                        </>
                     )}
+                  </Button>
+                   <Button
+                    variant="ghost"
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                       setTranslationResult("");
+                       setAccumulatedSigns("");
+                    }}
+                  >
+                    <XCircle className="mr-2 h-4 w-4" /> Clear
                   </Button>
                 </CardFooter>
               )}
