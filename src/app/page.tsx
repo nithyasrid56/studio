@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ThemeToggleButton } from "@/components/theme-toggle";
 
 const formSchema = z.object({});
 
@@ -232,13 +233,16 @@ export default function Home() {
     <div className="min-h-screen bg-background font-body text-foreground">
       <audio ref={audioRef} className="hidden" />
       <main className="container mx-auto p-4 py-8 md:p-8">
-        <header className="text-center mb-10">
+        <header className="text-center mb-10 relative">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
             Hellohand
           </h1>
           <p className="text-lg text-muted-foreground mt-2">
             Your friendly sign language interpreter.
           </p>
+          <div className="absolute top-0 right-0">
+            <ThemeToggleButton />
+          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
