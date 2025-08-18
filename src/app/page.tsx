@@ -62,6 +62,7 @@ const languageMap: { [key: string]: string } = {
 
 export default function Home() {
   const [translationResult, setTranslationResult] = React.useState<string | null>(null);
+  const [displayedTranslation, setDisplayedTranslation] = React.useState<string>("");
   const [isTranslating, setIsTranslating] = React.useState(false);
   const [isRecognizing, setIsRecognizing] = React.useState(false);
   const { toast } = useToast();
@@ -72,7 +73,6 @@ export default function Home() {
   const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const [accumulatedSigns, setAccumulatedSigns] = React.useState("");
-  const [contextualInfo, setContextualInfo] = React.useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -84,11 +84,12 @@ export default function Home() {
     
     setIsTranslating(true);
     setTranslationResult(null);
+    setDisplayedTranslation("");
     try {
       const result = await translateSignLanguage({
         signLanguageText,
         targetLanguage,
-        contextualInformation: contextualInfo,
+        contextualInformation: "Translate for a general audience.",
       });
       if (result.success && result.data) {
         setTranslationResult(result.data.improvedTranslation);
@@ -105,8 +106,7 @@ export default function Home() {
     } finally {
       setIsTranslating(false);
     }
-  }, [isTranslating, toast, contextualInfo]);
-
+  }, [isTranslating, toast]);
 
   const handleRecognizeSign = React.useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !hasCameraPermission || isRecognizing) {
@@ -150,8 +150,8 @@ export default function Home() {
   const clearAll = () => {
     form.reset();
     setTranslationResult(null);
+    setDisplayedTranslation("");
     setAccumulatedSigns("");
-    setContextualInfo("");
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = "";
@@ -214,6 +214,29 @@ export default function Home() {
       }
     };
   }, [hasCameraPermission, handleRecognizeSign]);
+  
+  React.useEffect(() => {
+    if (!translationResult) {
+      setDisplayedTranslation("");
+      return;
+    }
+
+    const words = translationResult.split(/\s+/);
+    let currentText = "";
+    let wordIndex = 0;
+
+    const intervalId = setInterval(() => {
+      if (wordIndex < words.length) {
+        currentText = `${currentText} ${words[wordIndex]}`.trim();
+        setDisplayedTranslation(currentText);
+        wordIndex++;
+      } else {
+        clearInterval(intervalId);
+      }
+    }, 150); // Adjust the speed of word appearance here
+
+    return () => clearInterval(intervalId);
+  }, [translationResult]);
 
   const speak = async (text: string, lang: string) => {
     if (!text || !lang || isGeneratingAudio) return;
@@ -359,10 +382,10 @@ export default function Home() {
                   </div>
                 )}
                 
-                {!isTranslating && translationResult && (
+                {!isTranslating && displayedTranslation && (
                   <div className="w-full">
                     <p className="text-2xl md:text-3xl font-semibold text-accent-foreground bg-accent p-6 rounded-lg shadow-inner">
-                      {translationResult}
+                      {displayedTranslation}
                     </p>
                      {accumulatedSigns && (
                       <p className="text-sm text-muted-foreground mt-4">
@@ -371,7 +394,7 @@ export default function Home() {
                     )}
                   </div>
                 )}
-                 {!isTranslating && !translationResult && !isRecognizing && (
+                 {!isTranslating && !displayedTranslation && !isRecognizing && (
                   <div className="text-muted-foreground space-y-2">
                     <Bot size={48} className="mx-auto" />
                     <p>Enable your camera and start signing.</p>
@@ -387,7 +410,7 @@ export default function Home() {
                     onClick={() =>
                       speak(translationResult, form.getValues("targetLanguage"))
                     }
-                    disabled={isGeneratingAudio}
+                    disabled={isGeneratingAudio || displayedTranslation !== translationResult}
                   >
                     {isGeneratingAudio ? (
                        <>
