@@ -23,7 +23,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { recognizeAndTranslate, generateSpeech } from "./actions";
+import {
+  recognizeAndTranslate,
+  generateSpeech,
+  improveTranslation,
+} from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -71,6 +75,25 @@ export default function Home() {
     defaultValues: {},
   });
 
+  const handleImproveTranslation = React.useCallback(
+    async (rawText: string) => {
+      if (!rawText) return;
+      try {
+        const result = await improveTranslation({
+          signLanguageText: rawText,
+          contextualInformation: "A person is signing in real-time.",
+          targetLanguage: languageMap[targetLanguage].name,
+        });
+        if (result.success && result.data) {
+          setTranslatedText(result.data.improvedTranslation);
+        }
+      } catch (error) {
+        // Fail silently
+      }
+    },
+    [targetLanguage]
+  );
+
   const handleRecognizeSign = React.useCallback(async () => {
     if (
       !videoRef.current ||
@@ -103,15 +126,10 @@ export default function Home() {
 
         if (result.success && result.data) {
           if (result.data.recognizedSign) {
-            setRecognizedText(
-              (prev) =>
-                `${prev} ${result.data.recognizedSign}`.trim()
-            );
-          }
-          if (result.data.translatedText) {
-            setTranslatedText(
-              (prev) => `${prev} ${result.data.translatedText}`.trim()
-            );
+            const newRecognizedText =
+              `${recognizedText} ${result.data.recognizedSign}`.trim();
+            setRecognizedText(newRecognizedText);
+            handleImproveTranslation(newRecognizedText);
           }
         }
       } catch (error: any) {
@@ -119,7 +137,14 @@ export default function Home() {
       }
     }
     setIsProcessing(false);
-  }, [hasCameraPermission, isProcessing, targetLanguage, translatedText]);
+  }, [
+    hasCameraPermission,
+    isProcessing,
+    targetLanguage,
+    translatedText,
+    recognizedText,
+    handleImproveTranslation,
+  ]);
 
   const handlePlayAudio = async () => {
     if (!translatedText || isSpeaking) return;
@@ -224,7 +249,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">
-       <audio ref={audioRef} className="hidden" />
+      <audio ref={audioRef} className="hidden" />
       <main className="container mx-auto p-4 py-8 md:p-8">
         <header className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
