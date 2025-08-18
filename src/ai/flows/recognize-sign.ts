@@ -35,8 +35,10 @@ const prompt = ai.definePrompt({
   name: 'recognizeSignPrompt',
   input: {schema: RecognizeSignInputSchema},
   output: {schema: RecognizeSignOutputSchema},
-  prompt: `You are an expert in Indian Sign Language (ISL). Analyze the provided image of a sign language gesture.
+  prompt: `You are an expert in Indian Sign Language (ISL) and communication through gestures.
+Analyze the provided image of a hand gesture.
 Interpret the hand shape, movement, location, and facial expression to determine the single word or short phrase being signed.
+This includes formal ISL signs as well as common, universal gestures like waving for "hello".
 Provide only the most likely interpretation. Your output should be concise.
 
 Image: {{media url=imageDataUri}}`,
