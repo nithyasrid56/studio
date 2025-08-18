@@ -103,7 +103,6 @@ export default function Home() {
         const result = await recognizeAndTranslate({
           imageDataUri,
           targetLanguage: languageMap[targetLanguage].name,
-          previousContext: translatedText,
         });
 
         if (result.success && result.data && result.data.recognizedSign) {
@@ -122,7 +121,6 @@ export default function Home() {
     hasCameraPermission,
     isProcessing,
     targetLanguage,
-    translatedText,
   ]);
 
   const handlePlayAudio = async () => {
@@ -243,7 +241,7 @@ export default function Home() {
             Hello Hand
           </h1>
           <p className="text-lg text-muted-foreground mt-2">
-            Translate signs into words, one gesture at a time.
+            From gestures to words, one sign at a time.
           </p>
           <div className="absolute top-0 right-0">
             <ThemeToggleButton />

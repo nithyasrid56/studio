@@ -3,7 +3,7 @@
 /**
  * @fileOverview Implements a Genkit flow to recognize a sign language gesture from an image and translate it.
  *
- * - recognizeAndTranslateSign - A function that takes an image of a sign and returns the recognized text and its translation.
+ * - recognizeAndTranslateSign - A function that takes an image of a sign and returns the recognized text.
  * - RecognizeAndTranslateSignInput - The input type for the recognizeAndTranslateSign function.
  * - RecognizeAndTranslateSignOutput - The return type for the recognizeAndTranslateSign function.
  */
@@ -20,11 +20,6 @@ const RecognizeAndTranslateSignInputSchema = z.object({
   targetLanguage: z
     .string()
     .describe('The target regional Indian language for the translation.'),
-  previousContext: z
-    .string()
-    .describe(
-      'The previously recognized and translated text, to provide context.'
-    ),
 });
 export type RecognizeAndTranslateSignInput = z.infer<
   typeof RecognizeAndTranslateSignInputSchema
@@ -34,9 +29,6 @@ const RecognizeAndTranslateSignOutputSchema = z.object({
   recognizedSign: z
     .string()
     .describe('The recognized word from the sign language gesture. This will be empty if no hand is detected.'),
-  translatedText: z
-    .string()
-    .describe('The translated text in the target language.'),
 });
 export type RecognizeAndTranslateSignOutput = z.infer<
   typeof RecognizeAndTranslateSignOutputSchema
@@ -52,18 +44,16 @@ const prompt = ai.definePrompt({
   name: 'recognizeAndTranslateSignPrompt',
   input: {schema: RecognizeAndTranslateSignInputSchema},
   output: {schema: RecognizeAndTranslateSignOutputSchema},
-  prompt: `You are an expert in Indian Sign Language (ISL). Your task is to interpret a single gesture from an image and append it to an existing sequence of words.
+  prompt: `You are an expert in Indian Sign Language (ISL). Your task is to interpret a single gesture from an image.
 
-1.  **Analyze the image for a hand gesture.** If no hand is visible or the gesture is unclear, return an empty string for 'recognizedSign' and the existing 'previousContext' for 'translatedText'.
-2.  **Identify the single word** being signed. Focus only on the hand gesture (shape, orientation, location, movement). Ignore all other visual information. This is the 'recognizedSign'.
-3.  **Do not explain the gesture.** Your output for 'recognizedSign' must be the single word translation only.
-4.  **Append, do not rephrase.** Take the 'recognizedSign' and append it to the 'previousContext'. The result is the 'translatedText'. For example, if 'previousContext' is "home" and you recognize "peace", 'translatedText' should be "home peace".
+1.  **Analyze the image for a hand gesture.** If no hand is visible or the gesture is unclear, return an empty string for 'recognizedSign'.
+2.  **Focus on the gesture and face.** Identify the single word being signed by interpreting the hand gesture (shape, orientation, location, movement) and the user's facial expression.
+3.  **Return a single word only.** Do not explain the gesture. Your output must be the single English word translation of the sign.
 
 Image: {{media url=imageDataUri}}
-Previous context (already translated text): {{{previousContext}}}
-Target Language: {{{targetLanguage}}}
+Target Language for context (do not translate): {{{targetLanguage}}}
 
-Your response must contain both the newly recognized sign and the updated appended text.`,
+Your response must contain only the newly recognized sign.`,
 });
 
 const recognizeAndTranslateSignFlow = ai.defineFlow(
@@ -76,7 +66,6 @@ const recognizeAndTranslateSignFlow = ai.defineFlow(
     const {output} = await prompt(input);
     return {
       recognizedSign: output!.recognizedSign,
-      translatedText: output!.translatedText,
     };
   }
 );
