@@ -52,9 +52,11 @@ const prompt = ai.definePrompt({
   name: 'recognizeAndTranslateSignPrompt',
   input: {schema: RecognizeAndTranslateSignInputSchema},
   output: {schema: RecognizeAndTranslateSignOutputSchema},
-  prompt: `You are an expert in Indian Sign Language (ISL) and a linguist. Your primary task is to accurately interpret the provided image, focusing exclusively on hand gestures. Pay very close attention to the details: hand shape, palm orientation, location of the hand, and any movement. Ignore any other actions, including facial expressions or background elements.
+  prompt: `You are an expert in Indian Sign Language (ISL) and a linguist. Your task is twofold.
 
-Once you have meticulously analyzed the hand gesture to identify the single word or short phrase being signed, you will then translate it into the target language. Use the previous context to ensure the new translation fits grammatically and coherently with what was said before. The final translated text should be a complete, natural-sounding sentence.
+First, accurately interpret the provided image, focusing exclusively on hand gestures. Pay very close attention to the details: hand shape, palm orientation, location of the hand, and any movement. Ignore any other actions, including facial expressions or background elements. Identify the single word or short phrase being signed. This is the 'recognizedSign'.
+
+Second, take the 'recognizedSign', translate it into {{{targetLanguage}}}, and append it to the 'previousContext'. Then, review the entire combined text and correct it to form a complete, natural-sounding, and grammatically correct sentence in {{{targetLanguage}}}. This is the 'translatedText'. Do NOT edit or remove previous correct parts of the sentence, only append and correct grammar.
 
 Image: {{media url=imageDataUri}}
 Previous context (already translated text): {{{previousContext}}}
