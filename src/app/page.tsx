@@ -49,8 +49,15 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const languageMap: { [key: string]: string } = {
+  English: "en-US",
   Hindi: "hi-IN",
   Tamil: "ta-IN",
+  Bengali: "bn-IN",
+  Telugu: "te-IN",
+  Marathi: "mr-IN",
+  Gujarati: "gu-IN",
+  Kannada: "kn-IN",
+  Malayalam: "ml-IN",
 };
 
 export default function Home() {
