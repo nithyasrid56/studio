@@ -194,7 +194,7 @@ export default function Home() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         setHasCameraPermission(true);
-
+        setIsCameraOn(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
@@ -204,13 +204,13 @@ export default function Home() {
       } catch (error) {
         console.error("Error accessing camera:", error);
         setHasCameraPermission(false);
+        setIsCameraOn(false);
         toast({
           variant: "destructive",
           title: "Camera Access Denied",
           description: "Please enable camera permissions in your browser settings to use this feature.",
         });
       }
-      setIsCameraOn(true);
     }
   };
   
