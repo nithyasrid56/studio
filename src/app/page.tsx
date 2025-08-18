@@ -64,7 +64,7 @@ export default function Home() {
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const [hasCameraPermission, setHasCameraPermission] =
     React.useState<boolean | null>(null);
-  const [isCameraOn, setIsCameraOn] = React.useState(false);
+  const [isCameraOn, setIsCameraOn] = React.useState(true);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const [targetLanguage, setTargetLanguage] = React.useState<string>("english");
 
@@ -172,51 +172,59 @@ export default function Home() {
     }
   };
 
-  const toggleCamera = async () => {
-    if (isCameraOn) {
-      stopRecognition();
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-        videoRef.current.srcObject = null;
-      }
-      setIsCameraOn(false);
-    } else {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setHasCameraPermission(false);
-        toast({
-          variant: "destructive",
-          title: "Camera Not Supported",
-          description: "Your browser does not support the camera API.",
-        });
-        return;
-      }
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            startRecognition();
-            setIsCameraOn(true);
-          };
-        }
-      } catch (error) {
-        console.error("Error accessing camera:", error);
-        setHasCameraPermission(false);
-        setIsCameraOn(false);
-        toast({
-          variant: "destructive",
-          title: "Camera Access Denied",
-          description:
-            "Please enable camera permissions in your browser settings to use this feature.",
-        });
-      }
+  const turnCameraOn = React.useCallback(async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setHasCameraPermission(false);
+      toast({
+        variant: "destructive",
+        title: "Camera Not Supported",
+        description: "Your browser does not support the camera API.",
+      });
+      return;
     }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+      setHasCameraPermission(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          startRecognition();
+          setIsCameraOn(true);
+        };
+      }
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      setHasCameraPermission(false);
+      setIsCameraOn(false);
+      toast({
+        variant: "destructive",
+        title: "Camera Access Denied",
+        description:
+          "Please enable camera permissions in your browser settings to use this feature.",
+      });
+    }
+  }, [startRecognition, toast]);
+
+  const turnCameraOff = () => {
+    stopRecognition();
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraOn(false);
   };
+  
+  React.useEffect(() => {
+    if (isCameraOn) {
+      turnCameraOn();
+    } else {
+      turnCameraOff();
+    }
+  }, [isCameraOn, turnCameraOn]);
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">
@@ -248,7 +256,7 @@ export default function Home() {
                     <Switch
                       id="camera-toggle"
                       checked={isCameraOn}
-                      onCheckedChange={toggleCamera}
+                      onCheckedChange={setIsCameraOn}
                     />
                   </div>
                 </CardTitle>
