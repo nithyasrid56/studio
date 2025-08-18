@@ -4,7 +4,7 @@ import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Bot, Camera, Languages, Loader2, Volume2, XCircle } from "lucide-react";
+import { Bot, Camera, Languages, Loader2, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,76 +15,39 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import {
-  recognizeAndTranslate,
-  generateSpeech,
-} from "./actions";
+import { recognizeSignLanguage } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-const formSchema = z.object({
-  targetLanguage: z.string({
-    required_error: "Please select a language.",
-  }),
-});
+const formSchema = z.object({});
 
 type FormValues = z.infer<typeof formSchema>;
 
-const languageMap: { [key: string]: string } = {
-  English: "en-US",
-  Hindi: "hi-IN",
-  Tamil: "ta-IN",
-  Bengali: "bn-IN",
-  Telugu: "te-IN",
-  Marathi: "mr-IN",
-  Gujarati: "gu-IN",
-  Kannada: "kn-IN",
-  Malayalam: "ml-IN",
-};
-
 export default function Home() {
-  const [translationResult, setTranslationResult] = React.useState<string>("");
+  const [recognizedText, setRecognizedText] = React.useState<string>("");
   const [isProcessing, setIsProcessing] = React.useState(false);
   const { toast } = useToast();
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = React.useState<boolean | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] =
+    React.useState<boolean | null>(null);
   const [isCameraOn, setIsCameraOn] = React.useState(false);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-  const [isGeneratingAudio, setIsGeneratingAudio] = React.useState(false);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  const [accumulatedSigns, setAccumulatedSigns] = React.useState("");
-  
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {},
   });
 
-  const handleRecognizeAndTranslate = React.useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !hasCameraPermission || isProcessing) {
-      return;
-    }
-
-    const targetLanguage = form.getValues("targetLanguage");
-    if (!targetLanguage) {
-      // Don't run if no language is selected
+  const handleRecognizeSign = React.useCallback(async () => {
+    if (
+      !videoRef.current ||
+      !canvasRef.current ||
+      !hasCameraPermission ||
+      isProcessing
+    ) {
       return;
     }
 
@@ -102,36 +65,29 @@ export default function Home() {
       const imageDataUri = canvas.toDataURL("image/jpeg");
 
       try {
-        const result = await recognizeAndTranslate({ 
+        const result = await recognizeSignLanguage({
           imageDataUri,
-          targetLanguage: targetLanguage,
-          previousContext: translationResult,
         });
 
-        if (result.success && result.data?.translatedText) {
-          const { recognizedSign, translatedText } = result.data;
-          setAccumulatedSigns(prev => prev ? `${prev} ${recognizedSign}` : recognizedSign);
-          setTranslationResult(prev => prev ? `${prev} ${translatedText}` : translatedText);
+        if (result.success && result.data?.text) {
+          setRecognizedText(
+            (prev) => (prev ? `${prev} ${result.data.text}` : result.data.text)
+          );
         } else {
-           // Don't show toast for failed recognition in real-time to avoid spamming user
+          // Don't show toast for failed recognition in real-time to avoid spamming user
         }
       } catch (error: any) {
-         // Don't show toast for failed recognition in real-time
+        // Don't show toast for failed recognition in real-time
       }
     }
     setIsProcessing(false);
-  }, [hasCameraPermission, form, isProcessing, translationResult]);
-  
+  }, [hasCameraPermission, isProcessing]);
+
   const clearAll = () => {
-    setTranslationResult("");
-    setAccumulatedSigns("");
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-    }
+    setRecognizedText("");
     toast({
-      title: 'Cleared',
-      description: 'The conversation has been reset.',
+      title: "Cleared",
+      description: "The conversation has been reset.",
     });
   };
 
@@ -139,9 +95,8 @@ export default function Home() {
     if (recognitionIntervalRef.current) {
       clearInterval(recognitionIntervalRef.current);
     }
-    // Reduced interval for lower latency
-    recognitionIntervalRef.current = setInterval(handleRecognizeAndTranslate, 1500);
-  }, [handleRecognizeAndTranslate]);
+    recognitionIntervalRef.current = setInterval(handleRecognizeSign, 1500);
+  }, [handleRecognizeSign]);
 
   const stopRecognition = () => {
     if (recognitionIntervalRef.current) {
@@ -155,7 +110,7 @@ export default function Home() {
       stopRecognition();
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
         videoRef.current.srcObject = null;
       }
       setIsCameraOn(false);
@@ -171,14 +126,16 @@ export default function Home() {
       }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
         setHasCameraPermission(true);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
-             startRecognition();
-             setIsCameraOn(true);
-          }
+            startRecognition();
+            setIsCameraOn(true);
+          };
         }
       } catch (error) {
         console.error("Error accessing camera:", error);
@@ -187,42 +144,15 @@ export default function Home() {
         toast({
           variant: "destructive",
           title: "Camera Access Denied",
-          description: "Please enable camera permissions in your browser settings to use this feature.",
+          description:
+            "Please enable camera permissions in your browser settings to use this feature.",
         });
       }
-    }
-  };
-  
-  const speak = async (text: string, lang: string) => {
-    if (!text || !lang || isGeneratingAudio) return;
-
-    setIsGeneratingAudio(true);
-    try {
-      const languageCode = languageMap[lang] || "en-US";
-      const result = await generateSpeech(text, languageCode);
-
-      if (result.success && result.data) {
-        if (audioRef.current) {
-          audioRef.current.src = result.data.audioDataUri;
-          audioRef.current.play();
-        }
-      } else {
-        throw new Error(result.error || "Failed to generate audio.");
-      }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Audio Playback Error",
-        description: error.message || "Could not play the audio.",
-      });
-    } finally {
-      setIsGeneratingAudio(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-background font-body text-foreground">
-       <audio ref={audioRef} className="hidden" />
       <main className="container mx-auto p-4 py-8 md:p-8">
         <header className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
@@ -239,14 +169,20 @@ export default function Home() {
             <Card className="overflow-hidden shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Camera className="text-primary" />
                     Live Camera Feed
-                   </div>
-                   <div className="flex items-center space-x-2">
-                      <Label htmlFor="camera-toggle">{isCameraOn ? "On" : "Off"}</Label>
-                      <Switch id="camera-toggle" checked={isCameraOn} onCheckedChange={toggleCamera} />
-                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="camera-toggle">
+                      {isCameraOn ? "On" : "Off"}
+                    </Label>
+                    <Switch
+                      id="camera-toggle"
+                      checked={isCameraOn}
+                      onCheckedChange={toggleCamera}
+                    />
+                  </div>
                 </CardTitle>
                 <CardDescription>
                   Your gestures are captured and translated in real-time.
@@ -254,68 +190,45 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden border">
-                   <video ref={videoRef} className="w-full aspect-video rounded-md scale-x-[-1]" autoPlay muted playsInline />
-                   <canvas ref={canvasRef} className="hidden" />
+                  <video
+                    ref={videoRef}
+                    className="w-full aspect-video rounded-md scale-x-[-1]"
+                    autoPlay
+                    muted
+                    playsInline
+                  />
+                  <canvas ref={canvasRef} className="hidden" />
                 </div>
                 {hasCameraPermission === false && (
-                    <Alert variant="destructive" className="mt-4">
-                      <AlertTitle>Camera Access Required</AlertTitle>
-                      <AlertDescription>
-                        Please allow camera access in your browser settings to use this feature.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertTitle>Camera Access Required</AlertTitle>
+                    <AlertDescription>
+                      Please allow camera access in your browser settings to use
+                      this feature.
+                    </AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
 
             <Card className="shadow-lg">
-               <CardHeader>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                   <Languages className="text-primary" />
-                   Translation Settings
+                  <Languages className="text-primary" />
+                  Conversation Control
                 </CardTitle>
               </CardHeader>
-              <Form {...form}>
-                <form className="h-full flex flex-col">
-                  <CardContent className="space-y-6 flex-grow">
-                    <FormField
-                      control={form.control}
-                      name="targetLanguage"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Target Language</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              // When language changes, clear previous results
-                              clearAll();
-                            }}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a language to begin" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {Object.keys(languageMap).map((lang) => (
-                                <SelectItem key={lang} value={lang}>
-                                  {lang}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                      <Button type="button" variant="outline" className="w-full" onClick={clearAll}>
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Clear Conversation
-                      </Button>
-                  </CardContent>
-                </form>
-              </Form>
+              <CardContent>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={clearAll}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Clear Conversation
+                </Button>
+              </CardContent>
             </Card>
           </div>
 
@@ -323,68 +236,44 @@ export default function Home() {
           <div className="lg:sticky top-8">
             <Card className="shadow-lg min-h-[30rem] flex flex-col">
               <CardHeader>
-                <CardTitle>Translation Output</CardTitle>
+                <CardTitle>Text Output</CardTitle>
                 <CardDescription>
                   The translated text from recognized signs will appear here.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-center items-center text-center">
-                
-                {isProcessing && !translationResult && (
+                {isProcessing && !recognizedText && (
                   <div className="flex flex-col items-center gap-4 text-muted-foreground">
-                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="font-semibold">Listening for signs...</p>
                   </div>
                 )}
-                
-                {translationResult && (
+
+                {recognizedText && (
                   <div className="w-full">
                     <p className="text-2xl md:text-3xl font-semibold text-accent-foreground bg-accent p-6 rounded-lg shadow-inner">
-                      {translationResult}
+                      {recognizedText}
                     </p>
-                     {accumulatedSigns && (
-                      <p className="text-sm text-muted-foreground mt-4">
-                        <span className="font-semibold">Recognized:</span> {accumulatedSigns}
-                      </p>
-                    )}
                   </div>
                 )}
 
-                 {!isProcessing && !translationResult && (
+                {!isProcessing && !recognizedText && (
                   <div className="text-muted-foreground space-y-2">
                     <Bot size={48} className="mx-auto" />
-                     {isCameraOn ? (
-                       <p>Start signing.</p>
-                     ) : (
-                       <p>Enable your camera to start.</p>
-                     )}
-                     <p className="text-sm">The translation will appear here.</p>
+                    {isCameraOn ? (
+                      <p>Start signing.</p>
+                    ) : (
+                      <p>Enable your camera to start.</p>
+                    )}
+                    <p className="text-sm">
+                      The translated text will appear here.
+                    </p>
                   </div>
                 )}
               </CardContent>
-              {translationResult && (
+              {recognizedText && (
                 <CardFooter className="flex-col sm:flex-row gap-2">
                   <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() =>
-                      speak(translationResult, form.getValues("targetLanguage"))
-                    }
-                    disabled={isGeneratingAudio}
-                  >
-                    {isGeneratingAudio ? (
-                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating Audio...
-                       </>
-                    ) : (
-                       <>
-                        <Volume2 className="mr-2 h-4 w-4" />
-                        Play Audio
-                       </>
-                    )}
-                  </Button>
-                   <Button
                     variant="ghost"
                     className="w-full sm:w-auto"
                     onClick={clearAll}
