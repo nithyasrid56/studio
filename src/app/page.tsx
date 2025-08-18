@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ThemeToggleButton } from "@/components/theme-toggle";
+import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({});
 
@@ -72,6 +73,7 @@ export default function Home() {
   const [isCameraOn, setIsCameraOn] = React.useState(true);
   const recognitionIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const [targetLanguage, setTargetLanguage] = React.useState<string>("english");
+  const [contextualInformation, setContextualInformation] = React.useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -118,12 +120,18 @@ export default function Home() {
           } else {
             const translationResult = await improveTranslation({
               signLanguageText: newEnglishText,
-              contextualInformation: "",
+              contextualInformation: contextualInformation,
               targetLanguage: languageMap[targetLanguage].name,
             });
 
             if (translationResult.success && translationResult.data) {
               setTranslatedText(translationResult.data.improvedTranslation);
+            } else {
+               toast({
+                variant: 'destructive',
+                title: 'Translation Error',
+                description: translationResult.error || 'Could not improve translation.',
+              });
             }
           }
         }
@@ -137,6 +145,8 @@ export default function Home() {
     isProcessing,
     targetLanguage,
     englishText,
+    contextualInformation,
+    toast,
   ]);
 
   const handlePlayAudio = async () => {
@@ -347,6 +357,19 @@ export default function Home() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="context-input">Context</Label>
+                  <Textarea
+                    id="context-input"
+                    placeholder="e.g., 'Ordering food' or 'Asking for directions'"
+                    value={contextualInformation}
+                    onChange={(e) => setContextualInformation(e.target.value)}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Providing context improves translation accuracy.
+                  </p>
                 </div>
                 <Button
                   type="button"
