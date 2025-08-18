@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   recognizeAndTranslate,
 } from "./actions";
+import { generateSpeech } from "./actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -103,9 +104,7 @@ export default function Home() {
         });
 
         if (result.success && result.data) {
-          if (result.data.recognizedSign) {
-            setTranslatedText(result.data.translatedText);
-          }
+          setTranslatedText(result.data.translatedText);
         }
       } catch (error: any) {
         // Fail silently in real-time to avoid spamming user
