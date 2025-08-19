@@ -47,7 +47,7 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert in Indian Sign Language (ISL). Your task is to interpret a single gesture from an image.
 
 1.  **Analyze the image for a hand gesture.** If no hand is visible or the gesture is unclear, return an empty string for 'recognizedSign'.
-2.  **Focus on the gesture and face.** Identify the single word being signed by interpreting the hand gesture (shape, orientation, location, movement) and the user's facial expression.
+2.  **Focus on the hand gesture.** Identify the single word being signed by interpreting the hand gesture (shape, orientation, location, and movement). Ignore any facial expressions.
 3.  **Return a single word only.** Do not explain the gesture. Your output must be the single English word translation of the sign.
 
 Image: {{media url=imageDataUri}}
